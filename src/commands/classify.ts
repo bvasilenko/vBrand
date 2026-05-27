@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 bvasilenko
 import { readFileSync } from 'node:fs';
 import { fileExists } from '../lib/fs.js';
 import { ClassifyReport, classifyHtml } from '../lib/html.js';

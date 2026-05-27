@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 bvasilenko
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { BrandOs, BrandOsSchema, SCHEMA_FILENAME } from '../schema.js';

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 bvasilenko
 import { parse, HTMLElement, Node, NodeType } from 'node-html-parser';
 
 export type NodeRole =

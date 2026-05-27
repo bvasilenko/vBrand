@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 bvasilenko
 import { describe, expect, it } from 'vitest';
 import { BrandOsSchema } from '../src/schema.js';
 
