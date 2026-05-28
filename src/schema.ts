@@ -2,7 +2,7 @@
 // Copyright (c) 2026 bvasilenko
 import { z } from 'zod';
 
-export const BrandOsSchema = z
+export const VbrandSchema = z
   .object({
     name: z.string().min(1),
     voice: z
@@ -42,6 +42,6 @@ export const BrandOsSchema = z
   })
   .strict();
 
-export type BrandOs = z.infer<typeof BrandOsSchema>;
+export type BrandOs = z.infer<typeof VbrandSchema>;
 
-export const SCHEMA_FILENAME = 'brand-os.schema.json';
+export const SCHEMA_FILENAME = 'vbrand.schema.json';

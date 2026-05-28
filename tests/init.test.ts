@@ -81,7 +81,7 @@ describe('runInit - name interpolation', () => {
     expect(pkg.name).toBe('acme');
   });
 
-  it('interpolates name into brand-os.schema.json', () => {
+  it('interpolates name into vbrand.schema.json', () => {
     const cwd = tmp(); dirs.push(cwd);
     const result = runInit({ name: 'acme', cwd });
     const schema = JSON.parse(readFileSync(join(result.projectDir, SCHEMA_FILENAME), 'utf-8')) as { name: string };

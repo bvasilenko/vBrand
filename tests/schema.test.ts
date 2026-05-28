@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
 import { describe, expect, it } from 'vitest';
-import { BrandOsSchema } from '../src/schema.js';
+import { VbrandSchema } from '../src/schema.js';
 
 const VALID_SCHEMA = {
   name: 'test-brand',
@@ -20,13 +20,13 @@ const VALID_SCHEMA = {
   },
 };
 
-describe('BrandOsSchema - valid input', () => {
+describe('VbrandSchema - valid input', () => {
   it('accepts a fully-populated valid schema', () => {
-    expect(BrandOsSchema.safeParse(VALID_SCHEMA).success).toBe(true);
+    expect(VbrandSchema.safeParse(VALID_SCHEMA).success).toBe(true);
   });
 
   it('accepts empty color and type token maps', () => {
-    const result = BrandOsSchema.safeParse({
+    const result = VbrandSchema.safeParse({
       ...VALID_SCHEMA,
       tokens: { color: {}, type: {} },
     });
@@ -34,7 +34,7 @@ describe('BrandOsSchema - valid input', () => {
   });
 
   it('accepts an empty icon set', () => {
-    const result = BrandOsSchema.safeParse({
+    const result = VbrandSchema.safeParse({
       ...VALID_SCHEMA,
       assets: { ...VALID_SCHEMA.assets, icons: { source: 'icons/', set: [] } },
     });
@@ -42,35 +42,35 @@ describe('BrandOsSchema - valid input', () => {
   });
 
   it('round-trip: parse → JSON.stringify → parse yields identical value', () => {
-    const first = BrandOsSchema.parse(VALID_SCHEMA);
-    const second = BrandOsSchema.parse(JSON.parse(JSON.stringify(first)));
+    const first = VbrandSchema.parse(VALID_SCHEMA);
+    const second = VbrandSchema.parse(JSON.parse(JSON.stringify(first)));
     expect(second).toEqual(first);
   });
 });
 
-describe('BrandOsSchema - top-level required fields', () => {
+describe('VbrandSchema - top-level required fields', () => {
   it.each(['name', 'voice', 'assets', 'tokens'] as const)(
     'rejects when %s is missing',
     (field) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [field]: _, ...rest } = VALID_SCHEMA;
-      expect(BrandOsSchema.safeParse(rest).success).toBe(false);
+      expect(VbrandSchema.safeParse(rest).success).toBe(false);
     },
   );
 
   it('rejects unknown top-level keys (strict)', () => {
-    expect(BrandOsSchema.safeParse({ ...VALID_SCHEMA, extra: 'x' }).success).toBe(false);
+    expect(VbrandSchema.safeParse({ ...VALID_SCHEMA, extra: 'x' }).success).toBe(false);
   });
 });
 
-describe('BrandOsSchema - string min-length boundaries', () => {
+describe('VbrandSchema - string min-length boundaries', () => {
   it('rejects empty name', () => {
-    expect(BrandOsSchema.safeParse({ ...VALID_SCHEMA, name: '' }).success).toBe(false);
+    expect(VbrandSchema.safeParse({ ...VALID_SCHEMA, name: '' }).success).toBe(false);
   });
 
   it('rejects empty voice.canonical', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         voice: { ...VALID_SCHEMA.voice, canonical: '' },
       }).success,
@@ -79,7 +79,7 @@ describe('BrandOsSchema - string min-length boundaries', () => {
 
   it('rejects empty voice.repoDescription', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         voice: { ...VALID_SCHEMA.voice, repoDescription: '' },
       }).success,
@@ -88,7 +88,7 @@ describe('BrandOsSchema - string min-length boundaries', () => {
 
   it('rejects empty favicon source path', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         assets: {
           ...VALID_SCHEMA.assets,
@@ -100,7 +100,7 @@ describe('BrandOsSchema - string min-length boundaries', () => {
 
   it('rejects empty string inside icons.set', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         assets: {
           ...VALID_SCHEMA.assets,
@@ -111,10 +111,10 @@ describe('BrandOsSchema - string min-length boundaries', () => {
   });
 });
 
-describe('BrandOsSchema - favicon.sizes constraints', () => {
+describe('VbrandSchema - favicon.sizes constraints', () => {
   it('rejects empty sizes array', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         assets: { ...VALID_SCHEMA.assets, favicon: { source: 'logo.png', sizes: [] } },
       }).success,
@@ -123,7 +123,7 @@ describe('BrandOsSchema - favicon.sizes constraints', () => {
 
   it('rejects zero as a size (must be positive)', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         assets: { ...VALID_SCHEMA.assets, favicon: { source: 'logo.png', sizes: [0] } },
       }).success,
@@ -132,7 +132,7 @@ describe('BrandOsSchema - favicon.sizes constraints', () => {
 
   it('rejects negative size', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         assets: { ...VALID_SCHEMA.assets, favicon: { source: 'logo.png', sizes: [-32] } },
       }).success,
@@ -141,7 +141,7 @@ describe('BrandOsSchema - favicon.sizes constraints', () => {
 
   it('rejects fractional size', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         assets: { ...VALID_SCHEMA.assets, favicon: { source: 'logo.png', sizes: [32.5] } },
       }).success,
@@ -149,10 +149,10 @@ describe('BrandOsSchema - favicon.sizes constraints', () => {
   });
 });
 
-describe('BrandOsSchema - og.dimensions constraints', () => {
+describe('VbrandSchema - og.dimensions constraints', () => {
   it('rejects zero width', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         assets: { ...VALID_SCHEMA.assets, og: { source: 'og.png', dimensions: [0, 630] } },
       }).success,
@@ -161,7 +161,7 @@ describe('BrandOsSchema - og.dimensions constraints', () => {
 
   it('rejects negative height', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         assets: { ...VALID_SCHEMA.assets, og: { source: 'og.png', dimensions: [1200, -1] } },
       }).success,
@@ -170,7 +170,7 @@ describe('BrandOsSchema - og.dimensions constraints', () => {
 
   it('rejects single-element tuple', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         assets: { ...VALID_SCHEMA.assets, og: { source: 'og.png', dimensions: [1200] } },
       }).success,
@@ -179,7 +179,7 @@ describe('BrandOsSchema - og.dimensions constraints', () => {
 
   it('rejects three-element tuple', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         assets: { ...VALID_SCHEMA.assets, og: { source: 'og.png', dimensions: [1200, 630, 50] } },
       }).success,
@@ -187,10 +187,10 @@ describe('BrandOsSchema - og.dimensions constraints', () => {
   });
 });
 
-describe('BrandOsSchema - nested strict mode', () => {
+describe('VbrandSchema - nested strict mode', () => {
   it('rejects unknown key inside voice', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         voice: { ...VALID_SCHEMA.voice, extra: 'x' },
       }).success,
@@ -199,7 +199,7 @@ describe('BrandOsSchema - nested strict mode', () => {
 
   it('rejects unknown key inside assets.favicon', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         assets: {
           ...VALID_SCHEMA.assets,
@@ -211,7 +211,7 @@ describe('BrandOsSchema - nested strict mode', () => {
 
   it('rejects unknown key inside tokens', () => {
     expect(
-      BrandOsSchema.safeParse({
+      VbrandSchema.safeParse({
         ...VALID_SCHEMA,
         tokens: { ...VALID_SCHEMA.tokens, extra: {} },
       }).success,

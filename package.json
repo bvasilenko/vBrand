@@ -1,7 +1,7 @@
 {
   "name": "@booga/vbrand",
-  "version": "0.1.2",
-  "description": "Schema-driven Brand-OS CLI. Scaffold, emit assets, classify HTML, audit drift.",
+  "version": "0.1.3",
+  "description": "Brand-asset toolkit CLI. Scaffold a Vite+React app, emit favicons / OG / color swatches / icon sets from a JSON schema, classify HTML by semantic role, and check that the project assets still match the schema.",
   "type": "module",
   "bin": {
     "vbrand": "./dist/cli.js"

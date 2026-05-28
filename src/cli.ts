@@ -12,12 +12,12 @@ const program = new Command();
 
 program
   .name('vbrand')
-  .description('Brand-OS CLI - scaffold, emit, classify, audit.')
+  .description('brand CLI - scaffold, emit, classify, audit.')
   .version('0.1.0');
 
 program
   .command('init [name]')
-  .description('scaffold a vUi-ready Vite+React project + brand-os.schema.json')
+  .description('scaffold a vUi-ready Vite+React project + vbrand.schema.json')
   .action(async (name?: string) => {
     const spinner = ora('Scaffolding project…').start();
     try {
@@ -33,7 +33,7 @@ program
 
 program
   .command('emit')
-  .description('read brand-os.schema.json, emit public/brand/')
+  .description('read vbrand.schema.json, emit public/brand/')
   .action(async () => {
     const spinner = ora('Emitting brand assets…').start();
     try {

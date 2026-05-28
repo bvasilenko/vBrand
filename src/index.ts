@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
-export { BrandOsSchema, SCHEMA_FILENAME } from './schema.js';
+export { VbrandSchema, SCHEMA_FILENAME } from './schema.js';
 export type { BrandOs } from './schema.js';
 
 export { runInit } from './commands/init.js';

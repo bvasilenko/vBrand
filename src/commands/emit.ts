@@ -2,7 +2,7 @@
 // Copyright (c) 2026 bvasilenko
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { BrandOs, BrandOsSchema, SCHEMA_FILENAME } from '../schema.js';
+import { BrandOs, VbrandSchema, SCHEMA_FILENAME } from '../schema.js';
 import { emitColorSwatches, emitFavicons, emitIconSet, emitOgImage } from '../lib/image.js';
 import { fileExists } from '../lib/fs.js';
 
@@ -21,7 +21,7 @@ function loadSchema(schemaPath: string): BrandOs {
     throw new Error(`Schema not found: ${schemaPath}`);
   }
   const raw = JSON.parse(readFileSync(schemaPath, 'utf-8')) as unknown;
-  return BrandOsSchema.parse(raw);
+  return VbrandSchema.parse(raw);
 }
 
 export async function runEmit(opts: EmitOptions = {}): Promise<EmitResult> {
