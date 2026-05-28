@@ -1,6 +1,6 @@
 {
   "name": "@booga/vbrand",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Schema-driven Brand-OS CLI. Scaffold, emit assets, classify HTML, audit drift.",
   "type": "module",
   "bin": {
@@ -18,10 +18,11 @@
     "dist",
     "LICENSE",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "template"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/copy-template.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests --max-warnings 0",
     "test": "vitest run --coverage",

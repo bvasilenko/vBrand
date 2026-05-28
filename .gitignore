@@ -10,3 +10,4 @@ coverage/
 .github/docs/TODO.md.bak
 contribot.state.*.json
 transcripts/
+template/

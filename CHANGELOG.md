@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-05-28
+
+### Fixed
+
+- 0.1.0 tarball was missing the scaffold template directory; `vbrand init` failed with ENOENT against `node_modules/@booga/vbrand/template`. Build pipeline now copies `src/template/` to `template/` at package root via `scripts/copy-template.mjs`, and `template` is in `package.json:files`. 0.1.0 deprecated.
+
 ## [Unreleased]
 
 ## [0.1.0] - 2026-05-27
