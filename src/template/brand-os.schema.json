@@ -6,15 +6,15 @@
   },
   "assets": {
     "favicon": {
-      "source": "assets/logo.png",
+      "source": "src/assets/logo-placeholder.png",
       "sizes": [16, 32, 180, 512]
     },
     "og": {
-      "source": "assets/og-source.png",
+      "source": "src/assets/logo-placeholder.png",
       "dimensions": [1200, 630]
     },
     "icons": {
-      "source": "assets/icons/",
+      "source": "src/assets/",
       "set": []
     }
   },

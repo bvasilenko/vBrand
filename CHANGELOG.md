@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-05-28
+
+### Fixed
+
+- Default scaffolded `brand-os.schema.json` referenced asset paths (`assets/logo.png`, `assets/og-source.png`, `assets/icons/`) that did not exist in the bundled template, so `vbrand emit` failed immediately after `vbrand init`. Schema now points at `src/assets/logo-placeholder.png` which is the only image actually shipped, and `icons.source` points at `src/assets/`. 0.1.1 deprecated.
+
 ## [0.1.1] - 2026-05-28
 
 ### Fixed

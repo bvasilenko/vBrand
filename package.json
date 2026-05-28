@@ -1,6 +1,6 @@
 {
   "name": "@booga/vbrand",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Schema-driven Brand-OS CLI. Scaffold, emit assets, classify HTML, audit drift.",
   "type": "module",
   "bin": {
