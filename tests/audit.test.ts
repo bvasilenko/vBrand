@@ -14,7 +14,7 @@ const SCHEMA = {
   voice: { canonical: 'Test.', repoDescription: 'Audit test.' },
   assets: {
     favicon: { source: 'logo.png', sizes: [16, 32] },
-    og: { source: 'og-source.png', dimensions: [1200, 630] as [number, number] },
+    og: { dimensions: [1200, 630] as [number, number] },
     icons: { source: 'icons/', set: [] },
   },
   tokens: {
@@ -26,11 +26,9 @@ const SCHEMA = {
 async function createProject(): Promise<string> {
   const dir = mkdtempSync(join(tmpdir(), 'vbrand-audit-'));
 
-  await sharp({ create: { width: 64, height: 64, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 255 } } })
-    .png().toFile(join(dir, 'logo.png'));
-
-  await sharp({ create: { width: 1200, height: 630, channels: 3, background: { r: 0, g: 0, b: 0 } } })
-    .png().toFile(join(dir, 'og-source.png'));
+  await sharp({
+    create: { width: 64, height: 64, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 255 } },
+  }).png().toFile(join(dir, 'logo.png'));
 
   writeFileSync(join(dir, SCHEMA_FILENAME), JSON.stringify(SCHEMA, null, 2), 'utf-8');
   return dir;

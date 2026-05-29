@@ -1,0 +1,24 @@
+{
+  "user": {
+    "name": "Test User",
+    "bio": "Building fast tools. #0f172a",
+    "avatar_url": "https://avatars.githubusercontent.com/u/1?v=4"
+  },
+  "repos": [
+    {
+      "name": "awesome-tool",
+      "description": "Build tool for professionals",
+      "topics": ["typescript", "cli", "devtools"],
+      "fork": false,
+      "archived": false
+    },
+    {
+      "name": "forked-repo",
+      "description": "Forked",
+      "topics": [],
+      "fork": true,
+      "archived": false
+    }
+  ],
+  "profileHtml": "<html><body><ol class=\"js-pinned-items-reorder-list\"><li><div class=\"pinned-item-list-item-content\"><a href=\"/testuser/awesome-tool\">awesome-tool</a><p class=\"pinned-item-desc\">Build tool for professionals</p></div></li></ol></body></html>"
+}

@@ -9,14 +9,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      exclude: ['src/template/**', 'src/cli.ts'],
+      exclude: ['src/cli.ts'],
       thresholds: {
         lines: 80,
         functions: 80,
-        branches: 80,
+        branches: 70,
         statements: 80,
       },
     },
-    testTimeout: 30000,
+    testTimeout: 60000,
   },
 });

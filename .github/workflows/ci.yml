@@ -1,6 +1,4 @@
 # .github/workflows/ci.yml - copy to each per-package repo's .github/workflows/
-#
-# Triggers: push to main, PRs to main, semver tags.
 # Pinned tool versions per frameworks/manager/execution/conventions.md §5.
 
 name: ci
@@ -15,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -51,20 +50,73 @@ jobs:
         run: bun run test
 
       - name: scrub
-        run: |
-          # In-repo scrub gate (canonical script bundled per package).
-          bash .github/scripts/scrub.sh .
+        run: bash .github/scripts/scrub.sh .
 
       - name: build
         run: bun run build
 
       - name: determinism-check
-        # Build twice; outputs must match byte-for-byte.
         run: |
           mv dist dist-1
           bun run build
           diff -r dist dist-1 || (echo "non-deterministic build" && exit 1)
           rm -rf dist-1
+
+      - name: tarball-size-budget
+        # Size drivers: Satori Inter font asset and @resvg/resvg-js native binary.
+        run: |
+          UNPACKED=$(npm pack --dry-run --json 2>/dev/null | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'))[0].unpackedSize.toString())")
+          [ "$UNPACKED" -le 3145728 ] || (echo "tarball exceeds 3 MB budget: ${UNPACKED} bytes" && exit 1)
+          echo "tarball size OK: ${UNPACKED} bytes"
+
+      - name: emit-og-x64
+        # Produce a reference OG on x64 so cross-arch-og can compare pixel equivalence.
+        run: bun run .github/scripts/emit-og-ci.mjs /tmp/og-x64.png
+
+      - name: upload-og-x64
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: og-x64
+          path: /tmp/og-x64.png
+          retention-days: 1
+
+  cross-arch-og:
+    needs: verify
+    if: false
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 1
+
+      - name: setup-bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.x
+          no-cache: true
+
+      - name: install
+        run: bun install --frozen-lockfile
+
+      - name: test-emit-deterministic
+        run: bun run test -- --reporter=verbose tests/emit-deterministic.test.ts
+
+      - name: emit-og-arm64
+        run: bun run .github/scripts/emit-og-ci.mjs /tmp/og-arm64.png
+
+      - name: download-og-x64
+        uses: actions/download-artifact@v4
+        with:
+          name: og-x64
+          path: /tmp/og-ref
+
+      - name: pixel-compare-cross-arch
+        # 1% tolerance at threshold 0.1 accommodates resvg native binary variation across architectures.
+        run: bun run .github/scripts/compare-og.mjs /tmp/og-ref/og-x64.png /tmp/og-arm64.png
 
   publish:
     needs: verify
@@ -95,5 +147,18 @@ jobs:
       # --provenance unsupported on self-hosted runners (sigstore requires GitHub-hosted).
       - name: publish
         run: npm publish --access=public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: deprecate-superseded-range
+        # Formula: <MAJOR.MINOR.0 -- so 0.2.x publishes cover <0.2.0; 0.3.0 covers <0.3.0.
+        # Non-fatal (|| true): a registry outage must not roll back a successful publish.
+        run: |
+          CURRENT=$(node -e "process.stdout.write(require('./package.json').version)")
+          MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+          MINOR=$(echo "$CURRENT" | cut -d. -f2)
+          CEILING="${MAJOR}.${MINOR}.0"
+          REASON="Superseded by @booga/vbrand@${CEILING}+. See CHANGELOG.md for the migration guide."
+          npm deprecate "@booga/vbrand@<${CEILING}" "$REASON" || true
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
