@@ -1,24 +1,20 @@
 /* SPDX-License-Identifier: MIT
  * Copyright (c) 2026 bvasilenko
  *
- * Stripe brand tokens applied at :root, overriding the @booga/vtheme defaults
- * that ship inside @booga/vui/styles.css. Values are OKLCH (L% C H) without the
- * oklch() wrapper, matching the vTheme/vUi token convention:
- *   color: oklch(var(--v-color-primary) / 1)
+ * Tailwind directives + Stripe brand override at :root. The @tailwind directives
+ * generate every utility vBlocks references at build time (max-w-6xl, lg:grid-cols-2,
+ * mx-auto, py-24, etc.); the vTheme preset configured in tailwind.config.js wires
+ * the oklch(var(--v-color-*)) bridge.
  *
- * Source palette (Stripe public brand):
- *   #635bff  primary       (the "Stripe purple")
- *   #0a2540  foreground    (Stripe dark navy headline)
- *   #f6f9fc  background    (Stripe pale ice)
- *   #00d4ff  accent        (Stripe cyan)
- *   #00d924  success       (Stripe green)
- *
- * Hand-tuned for the demo; in a real pipeline these are emitted by
- *   vbrand pull stripe.com && vbrand fuse && vbrand emit
- * and the resulting tokens.css drops in at this same slot.
+ * Brand values below are Stripe's published palette hand-tuned. In a real pipeline
+ * these come from `vbrand pull stripe.com && vbrand fuse [--baseline] && vbrand emit`
+ * and tokens.css drops in at this same slot.
  */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
-  /* Surfaces */
   --v-color-background: 98.07% 0.0051 247.9;
   --v-color-foreground: 25.99% 0.0604 251.3;
   --v-color-card: 100% 0 0;
@@ -26,43 +22,32 @@
   --v-color-popover: 100% 0 0;
   --v-color-popover-foreground: 25.99% 0.0604 251.3;
 
-  /* Primary - Stripe purple #635bff */
   --v-color-primary: 57.84% 0.2346 278.3;
   --v-color-primary-foreground: 100% 0 0;
 
-  /* Secondary - pale Stripe surface */
   --v-color-secondary: 96% 0.012 250;
   --v-color-secondary-foreground: 25.99% 0.0604 251.3;
 
-  /* Muted */
   --v-color-muted: 96% 0.008 250;
   --v-color-muted-foreground: 50% 0.04 250;
 
-  /* Accent - Stripe cyan #00d4ff */
   --v-color-accent: 80.43% 0.1459 219.5;
   --v-color-accent-foreground: 25.99% 0.0604 251.3;
 
-  /* Destructive */
   --v-color-destructive: 55% 0.22 27;
   --v-color-destructive-foreground: 99% 0.005 27;
 
-  /* Success - Stripe green */
   --v-color-success: 76.80% 0.2535 143.4;
   --v-color-success-foreground: 99% 0.005 145;
 
-  /* Warning */
   --v-color-warning: 70% 0.18 65;
   --v-color-warning-foreground: 20% 0.05 65;
 
-  /* Borders / inputs / focus ring share the primary hue */
   --v-color-border: 91% 0.012 250;
   --v-color-input: 91% 0.012 250;
   --v-color-ring: 57.84% 0.2346 278.3;
 }
 
-/* Page chrome: pin the body to the brand surface so the unstyled space
- * between sections inherits Stripe's pale-ice background.
- */
 html,
 body {
   background-color: oklch(var(--v-color-background) / 1);
