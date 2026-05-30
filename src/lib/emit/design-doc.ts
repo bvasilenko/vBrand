@@ -9,7 +9,7 @@ function yamlFrontmatter(schema: VbrandType): string {
   const lines = [
     '---',
     `name: "${schema.name}"`,
-    `version: "0.2.0"`,
+    `version: "0.2.1"`,
     `generated: "${new Date().toISOString().slice(0, 10)}"`,
     `primary_color: "${schema.tokens.color['primary'] ?? ''}"`,
     `voice_canonical: "${schema.voice.canonical.replace(/"/g, '\\"')}"`,

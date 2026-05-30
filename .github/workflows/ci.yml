@@ -138,6 +138,9 @@ jobs:
       - name: build
         run: bun run build
 
+      - name: probe-consumer
+        run: bash .github/scripts/probe-consumer.sh
+
       - name: setup-npm-auth
         run: |
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
@@ -151,14 +154,20 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: deprecate-superseded-range
-        # Formula: <MAJOR.MINOR.0 -- so 0.2.x publishes cover <0.2.0; 0.3.0 covers <0.3.0.
+        # Deprecate every version strictly below current so patch bumps (e.g. 0.2.0→0.2.1)
+        # are covered as well as minor bumps (e.g. 0.1.x→0.2.0).
         # Non-fatal (|| true): a registry outage must not roll back a successful publish.
         run: |
           CURRENT=$(node -e "process.stdout.write(require('./package.json').version)")
-          MAJOR=$(echo "$CURRENT" | cut -d. -f1)
-          MINOR=$(echo "$CURRENT" | cut -d. -f2)
-          CEILING="${MAJOR}.${MINOR}.0"
-          REASON="Superseded by @booga/vbrand@${CEILING}+. See CHANGELOG.md for the migration guide."
-          npm deprecate "@booga/vbrand@<${CEILING}" "$REASON" || true
+          REASON="Superseded by @booga/vbrand@${CURRENT}. See CHANGELOG.md for the migration guide."
+          npm deprecate "@booga/vbrand@<${CURRENT}" "$REASON" || true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: deprecate-020-migration-note
+        # 0.2.0 shipped without voiceCanonical/voiceDescription extractors and the CSS-var
+        # color cascade; overwrite its deprecation reason with the targeted migration message.
+        # Runs after the generic range step so it wins on npm registry.
+        run: npm deprecate "@booga/vbrand@0.2.0" "0.2.0 missed extractable voice fields and CSS-color fallback; superseded by 0.2.1" || true
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

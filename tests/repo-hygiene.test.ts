@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 const ROOT = join(import.meta.dirname, '..');
+
+function currentPackageTarballName(): string {
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8')) as { name: string; version: string };
+  const scope = pkg.name.replace(/^@/, '').replace('/', '-');
+  return `${scope}-${pkg.version}.tgz`;
+}
 
 function gitignorePatterns(): string[] {
   return readFileSync(join(ROOT, '.gitignore'), 'utf-8')
@@ -49,6 +55,10 @@ describe('.gitignore - required build-artifact exclusion patterns', () => {
   it('excludes .env variant secret files via glob', () => {
     expect(gitignorePatterns()).toContain('.env.*');
   });
+
+  it('excludes npm-pack tarball artifacts via glob', () => {
+    expect(gitignorePatterns()).toContain('*.tgz');
+  });
 });
 
 describe('.gitignore - tsbuildinfo pattern effectiveness', () => {
@@ -84,5 +94,45 @@ describe('.gitignore - tsbuildinfo pattern effectiveness', () => {
 describe('git index - build artifacts must not be tracked', () => {
   it('tsconfig.tsbuildinfo is not tracked by the git index', () => {
     expect(isGitTracked('tsconfig.tsbuildinfo')).toBe(false);
+  });
+
+  it('current version pack tarball is not tracked by the git index', () => {
+    expect(isGitTracked(currentPackageTarballName())).toBe(false);
+  });
+});
+
+describe('npm pack --dry-run - tarball file list correctness', () => {
+  let packFilePaths: string[] = [];
+
+  beforeAll(() => {
+    if (!existsSync(join(ROOT, 'dist'))) {
+      const buildResult = spawnSync('bun', ['run', 'build'], {
+        cwd: ROOT,
+        encoding: 'utf-8',
+        stdio: 'pipe',
+      });
+      if (buildResult.status !== 0) {
+        throw new Error(`pre-pack build failed: ${buildResult.stderr}`);
+      }
+    }
+    const result = spawnSync('npm', ['pack', '--dry-run', '--json'], {
+      cwd: ROOT,
+      encoding: 'utf-8',
+    });
+    packFilePaths = JSON.parse(result.stdout ?? '[]')?.[0]?.files?.map(
+      (f: { path: string }) => f.path,
+    ) ?? [];
+  });
+
+  it('vbrand/.cache/ does not appear in the packed file list', () => {
+    expect(packFilePaths.filter((p) => p.includes('.cache'))).toHaveLength(0);
+  });
+
+  it('dist/ directory is present in the packed file list', () => {
+    expect(packFilePaths.some((p) => p.startsWith('dist/'))).toBe(true);
+  });
+
+  it('no absolute paths leak into the packed file list', () => {
+    expect(packFilePaths.every((p) => !p.startsWith('/'))).toBe(true);
   });
 });

@@ -55,7 +55,7 @@ export async function cacheAsset(
   const provisionalPath = join(cacheDir, filename);
   const etagPath = `${provisionalPath}.etag`;
 
-  const headers: Record<string, string> = { 'User-Agent': 'vbrand/0.2.0' };
+  const headers: Record<string, string> = { 'User-Agent': 'vbrand/0.2.1' };
   const storedEtag =
     existsSync(etagPath) && existsSync(provisionalPath)
       ? readFileSync(etagPath, 'utf-8').trim()

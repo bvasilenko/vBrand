@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
-import { CandidateDoc, CandidateFields } from './candidate-schema.js';
+import { CandidateDoc, CandidateFields, DegradationEntry } from './candidate-schema.js';
 import { highField, lowField, noneField } from './confidence.js';
 import { sourceToSlug } from './slug.js';
 import { buildCandidateDoc, emptyFields } from './candidate.js';
@@ -24,7 +24,7 @@ export async function fetchFromNpm(packageName: string): Promise<CandidateDoc> {
   let data: NpmRegistryResponse;
   try {
     const response = await fetch(url, {
-      headers: { Accept: 'application/json', 'User-Agent': 'vbrand/0.2.0' },
+      headers: { Accept: 'application/json', 'User-Agent': 'vbrand/0.2.1' },
     });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status} ${response.statusText}`);
@@ -40,6 +40,17 @@ export async function fetchFromNpm(packageName: string): Promise<CandidateDoc> {
   const displayName = (data.name ?? packageName).replace(/^@[^/]+\//, '');
   const keywords = data.keywords ?? [];
   const colorKeyword = keywords.find((k) => HEX_RE.test(k));
+
+  const degradations: DegradationEntry[] = [];
+
+  degradations.push({ step: 'voice-canonical-extract', reason: 'absent-in-source' });
+  if (!data.description) {
+    degradations.push({ step: 'voice-description-extract', reason: 'absent-in-source' });
+  }
+  if (!colorKeyword) {
+    degradations.push({ step: 'colors-extract', reason: 'absent-in-source' });
+  }
+  degradations.push({ step: 'favicon-extract', reason: 'absent-in-source' });
 
   const fields: CandidateFields = {
     ...emptyFields(),
@@ -57,5 +68,5 @@ export async function fetchFromNpm(packageName: string): Promise<CandidateDoc> {
     icons: noneField('absent-in-source'),
   };
 
-  return buildCandidateDoc(slug, sourceUri, fields);
+  return buildCandidateDoc(slug, sourceUri, fields, degradations);
 }

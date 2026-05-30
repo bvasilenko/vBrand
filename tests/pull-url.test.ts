@@ -5,6 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fetchFromUrl } from '../src/lib/pull/from-url.js';
+import { mockFetch } from './mock-fetch.js';
 
 const cacheDirs: string[] = [];
 
@@ -36,19 +37,6 @@ const HTML_WITH_OG_SITE_NAME = `<!DOCTYPE html>
 
 const MINIMAL_HTML = `<html><head><title>Plain Site</title></head><body></body></html>`;
 
-function mockFetch(html: string, status = 200) {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn().mockResolvedValue({
-      ok: status >= 200 && status < 300,
-      status,
-      statusText: status === 200 ? 'OK' : 'Error',
-      text: async () => html,
-      arrayBuffer: async () => new ArrayBuffer(0),
-      headers: { get: () => null },
-    }),
-  );
-}
 
 describe('fetchFromUrl - CandidateDoc shape', () => {
   it('returns a document with $candidate: true discriminant', async () => {
@@ -92,11 +80,14 @@ describe('fetchFromUrl - name field extraction (acceptance #16)', () => {
     expect(doc.fields.name.confidence).toBe('medium');
   });
 
-  it('falls back to hostname with low confidence when title is missing', async () => {
+  it('falls back to hostname with low confidence and pushes name-extract degradation when no name meta', async () => {
     mockFetch('<html><head></head><body></body></html>');
     const doc = await fetchFromUrl('https://example.com');
     expect(doc.fields.name.value).toContain('example.com');
     expect(doc.fields.name.confidence).toBe('low');
+    expect(doc.provenance.degradations.some(
+      (d) => d.step === 'name-extract' && d.reason === 'no-name-meta',
+    )).toBe(true);
   });
 });
 
@@ -108,7 +99,7 @@ describe('fetchFromUrl - colors field extraction', () => {
     expect(doc.fields.colors.value?.['primary']).toBe('#0f172a');
   });
 
-  it('returns colors with confidence:none when no theme-color meta', async () => {
+  it('returns colors with confidence:none when no color signals at any cascade rung', async () => {
     mockFetch(MINIMAL_HTML);
     const doc = await fetchFromUrl('https://plain.example.com');
     expect(doc.fields.colors.confidence).toBe('none');
@@ -117,10 +108,14 @@ describe('fetchFromUrl - colors field extraction', () => {
 });
 
 describe('fetchFromUrl - favicon field extraction', () => {
-  it('sets favicon confidence:none when no cacheBase and no favicon link', async () => {
+  it('sets favicon confidence:none and pushes favicon-extract degradation when no favicon link and no cacheBase', async () => {
     mockFetch(MINIMAL_HTML);
     const doc = await fetchFromUrl('https://plain.example.com');
-    expect(doc.fields.favicon).toBeDefined();
+    expect(doc.fields.favicon.confidence).toBe('none');
+    expect(doc.fields.favicon.reason).toBe('absent-in-source');
+    expect(doc.provenance.degradations.some(
+      (d) => d.step === 'favicon-extract' && d.reason === 'absent-in-source',
+    )).toBe(true);
   });
 
   it('records og.dimensions as default [1200, 630]', async () => {
@@ -165,6 +160,17 @@ describe('fetchFromUrl - degradation cascade (spec §degradation)', () => {
     mockFetch(BASIC_HTML);
     const doc = await fetchFromUrl('https://acme.example.com');
     expect(Array.isArray(doc.provenance.degradations)).toBe(true);
+  });
+
+  it('page with no extractable signals produces degradation entries for every field cascade that fired', async () => {
+    mockFetch('<html><head></head><body></body></html>');
+    const doc = await fetchFromUrl('https://bare.example.com');
+    const steps = doc.provenance.degradations.map((d) => d.step);
+    expect(steps).toContain('name-extract');
+    expect(steps).toContain('voice-canonical-extract');
+    expect(steps).toContain('voice-description-extract');
+    expect(steps).toContain('favicon-extract');
+    expect(steps).toContain('colors-extract');
   });
 });
 
@@ -240,5 +246,136 @@ describe('fetchFromUrl - slug derivation', () => {
     mockFetch(BASIC_HTML);
     const doc = await fetchFromUrl(url);
     expect(doc.slug).toBe(expectedSlug);
+  });
+});
+;
+
+describe('fetchFromUrl - data: URI favicon (asset pass-through)', () => {
+  const DATA_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+  it('resolves a data: URI favicon to a local path without a network fetch beyond the page', async () => {
+    const html = `<html><head><link rel="icon" href="${DATA_PNG}" /></head><body></body></html>`;
+    const cacheBase = mkdtempSync(join(tmpdir(), 'vbrand-url-')); cacheDirs.push(cacheBase);
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => html,
+      headers: { get: () => null },
+      arrayBuffer: async () => new ArrayBuffer(0),
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const doc = await fetchFromUrl('https://datauri.example.com', cacheBase);
+    const secondaryFetches = fetchSpy.mock.calls.filter((c: unknown[]) => c[0] !== 'https://datauri.example.com');
+    expect(secondaryFetches).toHaveLength(0);
+    expect(doc.fields.favicon.confidence).not.toBe('none');
+    expect(doc.fields.favicon.value?.source).toBeTruthy();
+    expect(doc.provenance.assets.some((a) => a.sourceUrl.startsWith('data:'))).toBe(true);
+  });
+});
+
+describe('fetchFromUrl - HTML page ETag caching', () => {
+  const HTML_PAGE = `<!DOCTYPE html>
+<html><head>
+  <meta property="og:site_name" content="Etag Brand" />
+  <meta name="theme-color" content="#abcdef" />
+</head><body></body></html>`;
+
+  it('writes page.html and page.html.etag to cacheDir on first 200 response', async () => {
+    const { existsSync, readFileSync } = await import('node:fs');
+    const cacheBase = mkdtempSync(join(tmpdir(), 'vbrand-etag-')); cacheDirs.push(cacheBase);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      text: async () => HTML_PAGE,
+      headers: { get: (k: string) => k === 'etag' ? '"rev-1"' : null },
+      arrayBuffer: async () => new ArrayBuffer(0),
+    }));
+    await fetchFromUrl('https://etag.example.com', cacheBase);
+    const slug = 'etag-example-com';
+    expect(existsSync(join(cacheBase, slug, 'page.html'))).toBe(true);
+    expect(readFileSync(join(cacheBase, slug, 'page.html'), 'utf-8')).toBe(HTML_PAGE);
+    expect(existsSync(join(cacheBase, slug, 'page.html.etag'))).toBe(true);
+    expect(readFileSync(join(cacheBase, slug, 'page.html.etag'), 'utf-8')).toBe('"rev-1"');
+  });
+
+  it('does not write page.html.etag when server returns no ETag', async () => {
+    const { existsSync } = await import('node:fs');
+    const cacheBase = mkdtempSync(join(tmpdir(), 'vbrand-etag-')); cacheDirs.push(cacheBase);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200,
+      text: async () => HTML_PAGE,
+      headers: { get: () => null },
+      arrayBuffer: async () => new ArrayBuffer(0),
+    }));
+    await fetchFromUrl('https://noetag.example.com', cacheBase);
+    const slug = 'noetag-example-com';
+    expect(existsSync(join(cacheBase, slug, 'page.html'))).toBe(true);
+    expect(existsSync(join(cacheBase, slug, 'page.html.etag'))).toBe(false);
+  });
+
+  it('sends If-None-Match header on second request when ETag was stored', async () => {
+    const cacheBase = mkdtempSync(join(tmpdir(), 'vbrand-etag-')); cacheDirs.push(cacheBase);
+    const fetchSpy = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        text: async () => HTML_PAGE,
+        headers: { get: (k: string) => k === 'etag' ? '"rev-1"' : null },
+        arrayBuffer: async () => new ArrayBuffer(0),
+      })
+      .mockResolvedValueOnce({
+        ok: false, status: 304,
+        text: async () => '',
+        headers: { get: () => null },
+        arrayBuffer: async () => new ArrayBuffer(0),
+      });
+    vi.stubGlobal('fetch', fetchSpy);
+    await fetchFromUrl('https://condreq.example.com', cacheBase);
+    await fetchFromUrl('https://condreq.example.com', cacheBase);
+    const secondCallHeaders = fetchSpy.mock.calls[1][1]?.headers as Record<string, string>;
+    expect(secondCallHeaders['If-None-Match']).toBe('"rev-1"');
+  });
+
+  it('returns cached field values on 304 without re-parsing', async () => {
+    const cacheBase = mkdtempSync(join(tmpdir(), 'vbrand-etag-')); cacheDirs.push(cacheBase);
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        text: async () => HTML_PAGE,
+        headers: { get: (k: string) => k === 'etag' ? '"rev-1"' : null },
+        arrayBuffer: async () => new ArrayBuffer(0),
+      })
+      .mockResolvedValueOnce({
+        ok: false, status: 304,
+        text: async () => '',
+        headers: { get: () => null },
+        arrayBuffer: async () => new ArrayBuffer(0),
+      }));
+    const doc1 = await fetchFromUrl('https://hit304.example.com', cacheBase);
+    const doc2 = await fetchFromUrl('https://hit304.example.com', cacheBase);
+    expect(doc2.fields.name.value).toBe(doc1.fields.name.value);
+    expect(doc2.fields.colors.value).toEqual(doc1.fields.colors.value);
+  });
+
+  it('overwrites cache and updates ETag when server returns 200 on second request', async () => {
+    const { readFileSync } = await import('node:fs');
+    const cacheBase = mkdtempSync(join(tmpdir(), 'vbrand-etag-')); cacheDirs.push(cacheBase);
+    const HTML_V2 = HTML_PAGE.replace('#abcdef', '#112233');
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        text: async () => HTML_PAGE,
+        headers: { get: (k: string) => k === 'etag' ? '"rev-1"' : null },
+        arrayBuffer: async () => new ArrayBuffer(0),
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        text: async () => HTML_V2,
+        headers: { get: (k: string) => k === 'etag' ? '"rev-2"' : null },
+        arrayBuffer: async () => new ArrayBuffer(0),
+      }));
+    await fetchFromUrl('https://update.example.com', cacheBase);
+    const doc2 = await fetchFromUrl('https://update.example.com', cacheBase);
+    expect(doc2.fields.colors.value?.['primary']).toBe('#112233');
+    const etagFile = readFileSync(join(cacheBase, 'update-example-com', 'page.html.etag'), 'utf-8');
+    expect(etagFile).toBe('"rev-2"');
   });
 });

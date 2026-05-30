@@ -129,3 +129,37 @@ describe('fetchFromNpm - error handling', () => {
     }
   });
 });
+;
+
+describe('fetchFromNpm - provenance.degradations (cascade-exhaustion contract)', () => {
+  it('fields structurally unavailable from npm registry always produce degradation entries regardless of response content', async () => {
+    mockFetch({ ok: true, json: () => Promise.resolve(REGISTRY_RESPONSE) });
+    const doc = await fetchFromNpm('my-package');
+    expect(doc.provenance.degradations.some(
+      (d) => d.step === 'voice-canonical-extract' && d.reason === 'absent-in-source',
+    )).toBe(true);
+    expect(doc.provenance.degradations.some(
+      (d) => d.step === 'favicon-extract' && d.reason === 'absent-in-source',
+    )).toBe(true);
+  });
+
+  it('produces degradation entries for each conditional field absent from the registry response', async () => {
+    mockFetch({ ok: true, json: () => Promise.resolve({ name: 'bare-pkg' }) });
+    const doc = await fetchFromNpm('bare-pkg');
+    expect(doc.provenance.degradations.some((d) => d.step === 'voice-description-extract')).toBe(true);
+    expect(doc.provenance.degradations.some((d) => d.step === 'colors-extract')).toBe(true);
+  });
+
+  it('suppresses conditional degradation entries for fields the registry response provides', async () => {
+    mockFetch({ ok: true, json: () => Promise.resolve(REGISTRY_RESPONSE) });
+    const doc = await fetchFromNpm('my-package');
+    expect(doc.provenance.degradations.some((d) => d.step === 'voice-description-extract')).toBe(false);
+    expect(doc.provenance.degradations.some((d) => d.step === 'colors-extract')).toBe(false);
+  });
+
+  it('provenance.assets is always empty because the npm provider downloads no binary assets', async () => {
+    mockFetch({ ok: true, json: () => Promise.resolve(REGISTRY_RESPONSE) });
+    const doc = await fetchFromNpm('my-package');
+    expect(doc.provenance.assets).toEqual([]);
+  });
+});

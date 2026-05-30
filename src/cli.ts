@@ -14,7 +14,7 @@ const program = new Command();
 program
   .name('vbrand')
   .description('Active brand-operations layer. pull, fuse, emit, audit, publish.')
-  .version('0.2.0');
+  .version('0.2.1');
 
 program
   .command('pull <source>')

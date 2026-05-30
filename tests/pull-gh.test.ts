@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
 import { join } from 'node:path';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { describe, expect, it, afterEach, vi } from 'vitest';
 import { fetchFromGh } from '../src/lib/pull/from-gh.js';
 
@@ -70,6 +72,11 @@ describe('fetchFromGh - network mode (mocked)', () => {
     const doc = await fetchFromGh('netuser');
     expect(doc.fields.name.value).toBe('Net User');
     expect(doc.sourceUri).toBe('gh:netuser');
+    expect(doc.fields.voiceCanonical.value).toBe('hello');
+    expect(doc.fields.voiceCanonical.source).toBe('github-bio');
+    expect(doc.fields.voiceDescription.value).toBe('hello');
+    expect(doc.fields.voiceDescription.confidence).toBe('medium');
+    expect(doc.fields.voiceDescription.source).toBe('github-bio');
   });
 });
 
@@ -146,5 +153,48 @@ describe('fetchFromGh - HTML-primary path (acceptance #17)', () => {
       expect(Object.values(doc.fields.colors.value).some((c) => c.toLowerCase() === '#ff6600')).toBe(true);
       expect(doc.fields.colors.confidence).toBe('low');
     }
+  });
+});
+
+describe('fetchFromGh - provenance contracts', () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const d of dirs) rmSync(d, { recursive: true, force: true });
+    dirs.length = 0;
+  });
+
+  it('provenance.degradations is an array in GH candidate', async () => {
+    vi.stubEnv('VBRAND_GH_FIXTURE_DIR', FIXTURE_DIR);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: { get: (h: string) => (h === 'content-type' ? 'image/png' : null) },
+        arrayBuffer: async () => new ArrayBuffer(8),
+      }),
+    );
+    const cacheBase = mkdtempSync(join(tmpdir(), 'vbrand-gh-prov-')); dirs.push(cacheBase);
+    const doc = await fetchFromGh('testuser', cacheBase);
+    expect(Array.isArray(doc.provenance.degradations)).toBe(true);
+  });
+
+  it('records provenance.assets with sourceUrl and localPath when avatar is downloaded', async () => {
+    vi.stubEnv('VBRAND_GH_FIXTURE_DIR', FIXTURE_DIR);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: { get: (h: string) => (h === 'content-type' ? 'image/png' : null) },
+        arrayBuffer: async () => new ArrayBuffer(8),
+      }),
+    );
+    const cacheBase = mkdtempSync(join(tmpdir(), 'vbrand-gh-prov-')); dirs.push(cacheBase);
+    const doc = await fetchFromGh('testuser', cacheBase);
+    const assetEntry = doc.provenance.assets.find((a) => a.field === 'assets.favicon');
+    expect(assetEntry).toBeDefined();
+    expect(assetEntry?.sourceUrl).toBe('https://avatars.githubusercontent.com/u/1?v=4');
+    expect(assetEntry?.localPath).toBeTruthy();
   });
 });

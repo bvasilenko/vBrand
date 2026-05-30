@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -215,5 +215,22 @@ describe('runFuse - file-based integration (candidate doc inputs)', () => {
     const plain = writeSchema(dir, 'plain', { name: 'x' });
     const pathB = writeCandidateFile(dir, 'b', docB);
     await expect(runFuse([plain, pathB], { cwd: dir })).rejects.toThrow(/not a candidate document/);
+  });
+
+  it('throws with a clear message and does not write the canonical file when validation fails', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vbrand-fuse-')); dirs.push(dir);
+    const emptyA = buildCandidateDoc('a', 'local:a', emptyFields());
+    const emptyB = buildCandidateDoc('b', 'local:b', emptyFields());
+    const pathA = writeCandidateFile(dir, 'a', emptyA);
+    const pathB = writeCandidateFile(dir, 'b', emptyB);
+    let caughtError: Error | undefined;
+    try {
+      await runFuse([pathA, pathB], { cwd: dir });
+    } catch (err) {
+      caughtError = err as Error;
+    }
+    expect(caughtError?.message).toMatch(/Cannot produce canonical schema/);
+    expect(caughtError?.message).toMatch(/Missing required fields/);
+    expect(existsSync(join(dir, 'vbrand.schema.json'))).toBe(false);
   });
 });

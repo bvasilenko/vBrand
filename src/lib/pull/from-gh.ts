@@ -15,7 +15,7 @@ import { buildCandidateDoc, emptyFields } from './candidate.js';
 import { cacheAsset } from './asset-cache.js';
 
 const GH_API = 'https://api.github.com';
-const GH_UA = 'vbrand/0.2.0';
+const GH_UA = 'vbrand/0.2.1';
 const DEFAULT_SIZES: [number, ...number[]] = [16, 32, 180, 512];
 const DEFAULT_OG: [number, number] = [1200, 630];
 

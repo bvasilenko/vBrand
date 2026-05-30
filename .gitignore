@@ -2,6 +2,7 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+*.tgz
 .env
 .env.*
 .DS_Store
@@ -13,3 +14,5 @@ contribot.state.*.json
 transcripts/
 /template/
 vbrand/.cache/
+
+.playwright-cli/

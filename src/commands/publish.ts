@@ -23,7 +23,7 @@ export interface PublishResult {
   notice?: string;
 }
 
-const PACKAGE_VERSION = '0.2.0';
+const PACKAGE_VERSION = '0.2.1';
 
 export async function runPublish(opts: PublishOptions = {}): Promise<PublishResult> {
   const cwd = opts.cwd ?? process.cwd();
