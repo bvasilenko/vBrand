@@ -8,13 +8,16 @@ import { runFuse } from './commands/fuse.js';
 import { runEmit, EmitTarget } from './commands/emit.js';
 import { runAudit } from './commands/audit.js';
 import { runPublish, PublishAs } from './commands/publish.js';
+import { buildSyncCommand } from './commands/sync.js';
+import { buildInitCiCommand } from './commands/init-ci.js';
+import { buildDeployCommand } from './commands/deploy.js';
 
 const program = new Command();
 
 program
   .name('vbrand')
-  .description('Active brand-operations layer. pull, fuse, emit, audit, publish.')
-  .version('0.2.1');
+  .description('Active brand-operations layer. pull, fuse, emit, audit, publish, sync, init-ci, deploy.')
+  .version('0.3.0');
 
 program
   .command('pull <source>')
@@ -131,5 +134,9 @@ program
       process.exit(1);
     }
   });
+
+program.addCommand(buildSyncCommand());
+program.addCommand(buildInitCiCommand());
+program.addCommand(buildDeployCommand());
 
 program.parse();

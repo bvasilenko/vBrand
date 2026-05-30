@@ -6,7 +6,7 @@ import { describe, expect, it, beforeAll } from 'vitest';
 
 const ROOT = join(import.meta.dirname, '..');
 
-const EXPECTED_COMMANDS = ['pull', 'fuse', 'emit', 'audit', 'publish'] as const;
+const EXPECTED_COMMANDS = ['pull', 'fuse', 'emit', 'audit', 'publish', 'sync', 'init-ci', 'deploy'] as const;
 const REMOVED_COMMANDS = ['init', 'classify'] as const;
 
 function captureHelp(): string {
@@ -37,13 +37,13 @@ describe('vbrand --help', () => {
     },
   );
 
-  it('shows exactly 5 user-facing commands in the command list', () => {
+  it('shows exactly 8 user-facing commands in the command list', () => {
     // Commander indents command entries with 2 spaces; filter out the built-in
-    // "help" command which is not a user-facing 0.2.0 command.
+    // "help" command which is not a user-facing command. 0.3.0 adds sync, init-ci, deploy.
     const commandLines = output
       .split('\n')
       .filter((line) => /^  [a-z]/.test(line) && !line.trim().startsWith('help'));
-    expect(commandLines).toHaveLength(5);
+    expect(commandLines).toHaveLength(8);
   });
 
   it('usage line names the binary vbrand', () => {

@@ -16,3 +16,4 @@ transcripts/
 vbrand/.cache/
 
 .playwright-cli/
+.vbrand/

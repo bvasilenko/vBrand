@@ -114,6 +114,12 @@ export const VbrandSchema = z
       .optional(),
     slots: z.record(z.string(), SlotSchema).optional(),
     fusePolicies: z.record(z.string(), FusePolicyHintSchema).optional(),
+    provenance: z
+      .object({
+        scrubbed_handles: z.array(z.string().min(1)),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

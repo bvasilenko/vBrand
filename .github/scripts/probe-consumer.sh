@@ -68,3 +68,68 @@ CANDIDATE_COUNT="$(find "$CONSUMER_DIR" -maxdepth 1 -name '*.candidate.json' | w
 
 echo "probe: vbrand pull (local) wrote candidate JSON ✓"
 echo "probe: OK — @booga/vbrand consumer probe passed"
+echo "probe: running sync rig..."
+SYNC_PROBE_DIR="$(mktemp -d /tmp/vbrand-sync-probe-XXXXXX)"
+_sync_cleanup() { rm -rf "$SYNC_PROBE_DIR"; }
+trap '_probe_cleanup; _sync_cleanup' EXIT
+
+UMBRELLA_DIR="$SYNC_PROBE_DIR/umbrella"
+SITE_A="$SYNC_PROBE_DIR/site-a"
+SITE_B="$SYNC_PROBE_DIR/site-b"
+SITE_POISON="$SYNC_PROBE_DIR/site-poison"
+DIST_DIR="$SYNC_PROBE_DIR/dist"
+
+mkdir -p "$UMBRELLA_DIR" "$SITE_A" "$SITE_B" "$SITE_POISON" "$DIST_DIR"
+
+PROBE_SCHEMA='{"name":"probe","voice":{"canonical":"Probe.","repoDescription":"Probe brand."},"assets":{"favicon":{"source":"logo.png","sizes":[32]},"og":{"dimensions":[1200,630]},"icons":{"source":"icons/","set":[]}},"tokens":{"color":{"primary":"#0f172a"},"type":{}}}'
+
+printf '%s
+' "$PROBE_SCHEMA" > "$UMBRELLA_DIR/vbrand.schema.json"
+printf '%s
+' "$PROBE_SCHEMA" > "$SITE_A/vbrand.schema.json"
+printf '%s
+' "$PROBE_SCHEMA" > "$SITE_B/vbrand.schema.json"
+
+# Umbrella: init --as-umbrella and push
+cd "$UMBRELLA_DIR"
+VBRAND_SYNC_PRIVATE_KEY_OUTPUT="$("$VBRAND" sync init "file://$DIST_DIR" --as-umbrella --out-dir "$DIST_DIR" 2>&1)"
+VBRAND_SYNC_PRIVATE_KEY="$(echo "$VBRAND_SYNC_PRIVATE_KEY_OUTPUT" | grep VBRAND_SYNC_PRIVATE_KEY= | cut -d= -f2- | tr -d '[:space:]')"
+
+[[ -n "$VBRAND_SYNC_PRIVATE_KEY" ]] || {
+  echo "probe: FAIL — could not extract sync private key" >&2
+  exit 1
+}
+
+VBRAND_SYNC_PRIVATE_KEY="$VBRAND_SYNC_PRIVATE_KEY" "$VBRAND" sync push --out-dir "$DIST_DIR" || {
+  echo "probe: FAIL — sync push failed" >&2
+  exit 1
+}
+echo "probe: sync push ✓"
+
+# Site A: clean adopt
+cd "$SITE_A"
+"$VBRAND" sync init "file://$DIST_DIR" || { echo "probe: FAIL — site-a sync init" >&2; exit 1; }
+"$VBRAND" sync pull || { echo "probe: FAIL — site-a sync pull" >&2; exit 1; }
+echo "probe: site-a sync pull ✓"
+
+# Site B: override declared before pull
+cd "$SITE_B"
+"$VBRAND" sync init "file://$DIST_DIR" || { echo "probe: FAIL — site-b sync init" >&2; exit 1; }
+"$VBRAND" sync override tokens.color.primary --value '"#ffffff"' --reason "site-b keeps white" || { echo "probe: FAIL — site-b override" >&2; exit 1; }
+"$VBRAND" sync pull || { echo "probe: FAIL — site-b sync pull" >&2; exit 1; }
+echo "probe: site-b sync pull with override ✓"
+
+# Poisoned bundle: push with handle in schema should fail
+cd "$UMBRELLA_DIR"
+printf '%s
+' '{"name":"probe","voice":{"canonical":"Probe.","repoDescription":"Probe."},"assets":{"favicon":{"source":"logo.png","sizes":[32]},"og":{"dimensions":[1200,630]},"icons":{"source":"icons/","set":[]}},"tokens":{"color":{"primary":"#secret-handle-ref"},"type":{}},"provenance":{"scrubbed_handles":["secret-handle"]}}' > "$UMBRELLA_DIR/vbrand.schema.json"
+# Capture combined output; sync push is expected to exit non-zero with E_HANDLE_LEAK
+POISONED_OUTPUT="$(VBRAND_SYNC_PRIVATE_KEY="$VBRAND_SYNC_PRIVATE_KEY" "$VBRAND" sync push --out-dir "$DIST_DIR" 2>&1 || true)"
+if ! echo "$POISONED_OUTPUT" | grep -q E_HANDLE_LEAK; then
+  echo "probe: FAIL - poisoned push should have emitted E_HANDLE_LEAK" >&2
+  echo "actual output: $POISONED_OUTPUT" >&2
+  exit 1
+fi
+echo "probe: poisoned push correctly refused ✓"
+
+echo "probe: sync rig OK ✓"

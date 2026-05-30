@@ -54,3 +54,68 @@ export { runMarksGeometry } from './lib/audit/marks-geometry.js';
 export type { MarksFinding } from './lib/audit/marks-geometry.js';
 export { validateFixtureFile, validateFixtureDir } from './lib/fixture-validator.js';
 export type { FixtureValidationReport, FixtureError } from './lib/fixture-validator.js';
+
+export { runSyncInit, runSyncPull } from './lib/sync/pull.js';
+export type { SyncInitOptions, SyncPullOptions } from './lib/sync/pull.js';
+export { runSyncPush } from './lib/sync/push.js';
+export type { SyncPushOptions } from './lib/sync/push.js';
+export { computeSyncStatus, runSyncVerify } from './lib/sync/status.js';
+export type { SyncStatusOptions, SyncVerifyOptions } from './lib/sync/status.js';
+export { generateKeyPair, signBytes, verifyBytes } from './lib/sync/sign.js';
+export { digestJson, digestBytes } from './lib/sync/digest.js';
+export {
+  readSyncConfig,
+  writeSyncConfig,
+  patchSyncConfig,
+  syncConfigPath,
+  syncLogPath,
+  defaultConflictPolicy,
+} from './lib/sync/config.js';
+export {
+  readOverrides,
+  writeOverrides,
+  createOverridesDoc,
+  applyOverrides,
+  setOverride,
+  forgetOverride,
+  activeOverrideCount,
+  OVERRIDES_FILENAME,
+} from './lib/sync/overrides.js';
+export { appendLogEntry, readLog, readLogSince } from './lib/sync/log.js';
+export { scrubHandles, auditPostScrub } from './lib/sync/scrub.js';
+export { scanForHandleLeaks } from './lib/sync/handle-audit.js';
+export type {
+  SyncConfig,
+  ConflictPolicy,
+  SyncHead,
+  OverrideEntry,
+  OverridesDoc,
+  SyncLogEntry,
+  SyncLogOp,
+  SyncStatus,
+  SyncStatusCode,
+  SyncPushResult,
+  SyncPullResult,
+  SyncVerifyResult,
+  HandleLeakFinding,
+} from './lib/sync/types.js';
+
+export { runInitCi } from './commands/init-ci.js';
+export type { InitCiOptions, InitCiResult } from './commands/init-ci.js';
+
+export { runDeploy, runDoctor } from './commands/deploy.js';
+export { createComposeSshAdapter } from './lib/deploy/compose-ssh.js';
+export {
+  DEFAULT_STATE_DIR,
+  readManifest,
+  readLastDeploy,
+  readRollbackPointers,
+  findForbiddenPatterns,
+} from './lib/deploy/state.js';
+export type {
+  DeployAdapter,
+  DeployManifest,
+  DeployTarget,
+  DeployHistoryEntry,
+  PrepareInput,
+} from './lib/deploy/types.js';

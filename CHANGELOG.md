@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-30
+
+### Added
+
+- `vbrand sync` command surface: `init`, `pull`, `push`, `status`, `verify`, `override`, `forget`, `log` sub-commands.
+- Single-directional umbrella → sub-site sync over HTTPS+CDN (file:// for local use). Content-addressed by sha256; poll-default.
+- ed25519 signing for the distribution head pointer (Node.js built-in `crypto`, zero new dependencies).
+- `respect` conflict policy (default): sub-site overrides survive umbrella head changes; `vbrand sync status` exits 2 when ahead; `.vbrand/sync.log.jsonl` records observed-but-not-adopted umbrella values.
+- Three-pass handle isolation gate for `vbrand sync push`: tree-walk scrub → audit re-scan → sign. `E_HANDLE_LEAK` on scrub failure; `E_HANDLE_LEAK_DOWNSTREAM` on sub-site `verify` or `pull`.
+- `provenance.scrubbed_handles[]` optional field added to `VbrandSchema` for umbrella-side isolation config.
+- `vbrand init-ci` command emits six CI scaffolding files: `.github/workflows/vbrand-deploy.yml`, `.gitlab-ci.yml`, multi-stage `Dockerfile` (RUNTIME=nginx|bun build-arg selectable), `.dockerignore`, `vbrand.deploy.json` (single source of truth manifest), `scripts/vbrand-set-secrets.sh` (read-stdin → forge CLI; vBrand process never sees secret values). Both workflows read every config value via `jq` from the manifest; no hard-coded registry hostname, image name, or deploy kind outside the manifest read step.
+- `vbrand deploy` command with `--target=compose-ssh` adapter (default) for docker-compose-over-SSH deployment. Adapter contract `prepare(image, host, auth)`, `trigger(digest)`, `health(timeoutMs)`, `rollback(toDigest)`. Subcommands `status`, `doctor`. State persisted under `vbrand/.deploy/` (digest-pinned, append-only `history.jsonl`, rollback pointers capped at 5; `vbrand deploy doctor` greps state dir for forbidden patterns `^Bearer `, `_TOKEN=`, `BEGIN OPENSSH PRIVATE KEY`, JWT shapes).
+- AC#40 maximum-capability demo at `examples/demo/`: Dockerfile + docker-compose.yml + README documenting the literal five-command production sequence against `https://stripe.com` end-to-end. No `init-demo`, no `--demo` flag, no `DEMO_MODE` conditional - every command in the demo is a command a paying user runs.
+- `vbrand --help` lists eight commands: original five (`pull`, `fuse`, `emit`, `audit`, `publish`) plus the three new orchestrator commands (`sync`, `init-ci`, `deploy`).
+- Pre-publish probe extended with umbrella + 3-sub-site sync rig (clean adopt, override-held, poisoned-bundle refusal).
+- 0.3.0 publishes on `dist-tags.latest`; 0.2.1 line remains on `dist-tags.stable`.
+- `tests/no-llm-in-cli.test.ts`: build-time guard that `dist/` contains no AI SDK imports.
+
+### Deferred to 0.3.1
+
+- `vbrand emit --preset=payload` (R1 Payload preset): opt-in paid-tier scaffold for Next.js + Payload + Postgres. Free-tier vSsg path (the default, used by AC#40 demo) ships in 0.3.0 unchanged.
+- `vbrand deploy --target=coolify` and `--target=fly` (R2 second-wave targets): in-tree but feature-flagged; `compose-ssh` is the in-tree default in 0.3.0.
+- `vbrand sync-ci` three-way merge for updates (R3 follow-up): 0.3.0 ships first-emit only.
+
 ## [0.2.1] - 2026-05-30
 
 ### Fixed
