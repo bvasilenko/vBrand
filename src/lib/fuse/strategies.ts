@@ -5,6 +5,8 @@ import { applyMergePatchSequence } from './merge-patch.js';
 
 export type FuseStrategy = 'umbrella-wins' | 'merge-patch' | 'cascade';
 
+export const UMBRELLA_WINS_STRATEGY: FuseStrategy = 'umbrella-wins';
+
 function extractPolicies(schemas: unknown[]): FusePolicies {
   const combined: FusePolicies = {};
   for (const schema of schemas) {
