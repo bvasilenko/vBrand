@@ -9,6 +9,11 @@
  * Brand values below are Stripe's published palette hand-tuned. In a real pipeline
  * these come from `vbrand pull stripe.com && vbrand fuse [--baseline] && vbrand emit`
  * and tokens.css drops in at this same slot.
+ *
+ * Typography (Playfair Display / Inter / JetBrains Mono), tone colors, and font
+ * sizing scales now live upstream in @booga/vtheme 0.3.0. This file owns ONLY
+ * the brand-specific color overrides; it does NOT touch font-family, font-size,
+ * or any tone-* tokens.
  */
 @tailwind base;
 @tailwind components;
@@ -46,15 +51,4 @@
   --v-color-border: 91% 0.012 250;
   --v-color-input: 91% 0.012 250;
   --v-color-ring: 57.84% 0.2346 278.3;
-}
-
-html,
-body {
-  background-color: oklch(var(--v-color-background) / 1);
-  color: oklch(var(--v-color-foreground) / 1);
-  font-family: ui-sans-serif, system-ui, sans-serif;
-}
-
-#root {
-  min-height: 100vh;
 }

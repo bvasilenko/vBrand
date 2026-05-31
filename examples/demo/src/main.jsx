@@ -10,10 +10,12 @@
 //   4. drop tokens.css at :root and content into vBlocks sections
 //      -> the brand renders as a real website composed of v-suite WebUI.
 //
-// This demo wires step 4 by hand against Stripe's published palette so the
-// hosted gh-pages floor URL shows the thesis. The vBlocks sections (hero,
-// features, cta, footer) and vUi primitives (Badge) are the production
-// components from npm; no demo-only forks.
+// This file is the deploy step: Stripe's brand tokens applied at :root via
+// brand-tokens.css, every section rendered by @booga/vblocks 0.4.0 with the
+// new richness fields (eyebrow, kicker, density, tonePills) consumed directly;
+// no leaf-consumer CSS overrides. Typography (Playfair Display headlines,
+// Inter body, JetBrains Mono code) is owned by @booga/vtheme 0.3.0 and
+// inherited via the cascade.
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -24,7 +26,7 @@ import { HeroSplit } from '@booga/vblocks/hero';
 import { FeaturesGrid } from '@booga/vblocks/features';
 import { CtaCentered } from '@booga/vblocks/cta';
 import { FooterSplit } from '@booga/vblocks/footer';
-import { Badge, Box, Inline, Stack } from '@booga/vui';
+import { Stack, Inline, Box, Kicker, Eyebrow, Pill } from '@booga/vui';
 
 // 1x1 transparent PNG so the HeroSplit image slot validates without needing
 // us to ship a 1200x630 OG image into the bundle. The hero's right column
@@ -36,12 +38,19 @@ const STRIPE_BRAND_NAME = 'Stripe';
 const STRIPE_HREF = 'https://stripe.com';
 
 const heroContent = {
-  eyebrow: 'vBrand 0.3.0 - Brand-OS demo',
+  kicker: 'Brand-OS demo',
+  eyebrow: 'vBrand 0.3.0 - Stripe brand pulled and rendered',
   heading: 'Financial Infrastructure to Grow Your Revenue',
   description:
     'Join millions of companies that use Stripe to accept payments, send payouts, automate financial processes, and ultimately grow revenue. This page is rendered from a brand candidate pulled by vbrand from stripe.com - the same v-suite components, themed by tokens emitted at the brand step.',
   primaryCta: { label: 'Start now', href: STRIPE_HREF },
   secondaryCta: { label: 'Contact sales', href: STRIPE_HREF },
+  tonePills: [
+    { label: 'Stripe brand pulled', tone: 'info' },
+    { label: 'compose-ssh deploy ready', tone: 'ok' },
+    { label: 'v-suite WebUI', tone: 'meta' },
+  ],
+  density: 'spacious',
   image: {
     src: TRANSPARENT_PIXEL,
     alt: 'Stripe brand surface',
@@ -49,7 +58,12 @@ const heroContent = {
 };
 
 const featuresContent = {
+  eyebrow: 'A fully integrated suite',
   heading: 'A fully integrated suite of financial and payments products',
+  tonePills: [
+    { label: 'Schema-validated content', tone: 'info' },
+    { label: 'Typed primitives', tone: 'ok' },
+  ],
   features: [
     {
       title: 'Payments',
@@ -85,6 +99,7 @@ const featuresContent = {
 };
 
 const ctaContent = {
+  eyebrow: 'Ready when you are',
   heading: 'Start integrating Stripe products and tools',
   description:
     'Create a free account at any time to begin testing. Activate when you are ready to accept live payments.',
@@ -108,24 +123,19 @@ const footerContent = {
     'Brand pulled from stripe.com by vbrand 0.3.0. Rendered with @booga/vblocks + @booga/vui + @booga/vtheme.',
 };
 
-// Provenance strip above the hero - makes it visually obvious that this
-// page is composed of v-suite WebUI primitives, not a hand-rolled mock.
-function ProvenanceStrip() {
+// Brand-mark strip sitting above the HeroSplit. Mirrors the proposal-style
+// "engagement-tag + meta-row + brand-mark" header pattern, but built entirely
+// from vUi 0.4.0 primitives (Kicker, Eyebrow, Pill) so no leaf-consumer CSS
+// is needed. The Inline lays the row out; Pill carries the tone semantics.
+function BrandMarkStrip() {
   return (
-    <Box
-      style={{
-        backgroundColor: 'oklch(var(--v-color-foreground) / 1)',
-        color: 'oklch(var(--v-color-primary-foreground) / 1)',
-        padding: '10px 24px',
-      }}
-    >
-      <Inline style={{ gap: 12, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
-        <Badge variant="secondary">vbrand pull stripe.com</Badge>
-        <Badge variant="secondary">vbrand fuse</Badge>
-        <Badge variant="secondary">vbrand emit</Badge>
-        <span style={{ fontSize: 13, opacity: 0.85 }}>
-          tokens at :root, content in vBlocks, rendered as a real website.
-        </span>
+    <Box as="header" className="max-w-6xl mx-auto px-6 pt-16">
+      <Inline wrap gap={3} align="center">
+        <Kicker>vBrand 0.3.0</Kicker>
+        <Eyebrow tone="info">Brand-OS demo</Eyebrow>
+        <Pill tone="ok">pull - fuse - emit shipped</Pill>
+        <Pill tone="info">Stripe brand applied</Pill>
+        <Pill tone="meta">compose-ssh deploy ready</Pill>
       </Inline>
     </Box>
   );
@@ -133,8 +143,8 @@ function ProvenanceStrip() {
 
 function App() {
   return (
-    <Stack style={{ gap: 0 }}>
-      <ProvenanceStrip />
+    <Stack gap={0}>
+      <BrandMarkStrip />
       <HeroSplit content={heroContent} />
       <FeaturesGrid content={featuresContent} />
       <CtaCentered content={ctaContent} />

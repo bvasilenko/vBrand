@@ -9,10 +9,10 @@
     "preview": "vite preview --port 5290"
   },
   "dependencies": {
-    "@booga/vblocks": "^0.3.5",
-    "@booga/vdsl": "^0.2.1",
-    "@booga/vtheme": "^0.2.2",
-    "@booga/vui": "^0.3.1",
+    "@booga/vblocks": "^0.4.0",
+    "@booga/vdsl": "^0.3.0",
+    "@booga/vtheme": "^0.3.0",
+    "@booga/vui": "^0.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
