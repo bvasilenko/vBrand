@@ -1,48 +1,89 @@
-# vBrand 0.3.0 - AC#40 Maximum-Capability Demo
+# vBrand 0.3.0 demo - HONEST rendering of the literal pull output
 
-The production-command sequence that takes a real brand (Stripe) from URL to a live URL - using **only commands the paying user would run.** No `init-demo`, no `--demo` flag, no `DEMO_MODE` conditional.
+This demo renders the literal output of:
 
-## The five-command production sequence
+```bash
+npx @booga/vbrand@0.3.0 pull https://stripe.com
+```
+
+run in a pristine npm consumer. The candidate JSON it produced lives at
+[`stripe-com.candidate.json`](./stripe-com.candidate.json) and is imported
+directly into [`src/main.jsx`](./src/main.jsx). No hand-tuned palette; no
+LLM-authored Stripe copy.
+
+Empty fields on the page are intentional - they show the deterministic
+extractor's actual signal coverage on stripe.com today. Once vBrand 0.3.1
+ships fuse-baseline injection (AC#40 5-of-5 close), the empty fields fill
+from baseline defaults at `confidence: low` and `vbrand emit` produces a
+real `public/brand/brand-tokens.css` for the demo's `:root`.
+
+## How the candidate was produced (verbatim)
+
+```bash
+# pristine consumer
+rm -rf /tmp/vbrand-real-pull
+mkdir -p /tmp/vbrand-real-pull/consumer
+cd /tmp/vbrand-real-pull/consumer
+npm init -y
+npm install @booga/vbrand@0.3.0
+npx vbrand pull https://stripe.com
+# - Pulling brand signals...
+# Candidate written -> /tmp/vbrand-real-pull/consumer/stripe-com.candidate.json
+```
+
+That `stripe-com.candidate.json` was copied verbatim into this directory.
+
+## Field coverage that the demo surfaces
+
+| field             | confidence | source              | rendered as                                       |
+| ----------------- | ---------- | ------------------- | ------------------------------------------------- |
+| name              | medium     | og:title            | hero heading + footer brand.name                  |
+| voiceCanonical    | high       | og:title            | hero eyebrow + CTA heading + footer tagline       |
+| voiceDescription  | high       | og:description      | hero description                                  |
+| favicon           | high       | link[rel=icon]      | evidence card (local cache path + sizes)          |
+| og                | high       | default             | evidence card (dimensions only; no asset on disk) |
+| colors            | none       | dynamic-render-req'd | warn-tone pill + evidence note                    |
+| typeTokens        | none       | absent-in-source    | features-grid card marked "missing"               |
+| icons             | none       | absent-in-source    | features-grid card marked "missing"               |
+| marks             | none       | absent-in-source    | features-grid card marked "missing"               |
+| themes            | none       | absent-in-source    | features-grid card marked "missing"               |
+
+## The fuse gap (not fixed in this demo)
+
+```bash
+cd /tmp/vbrand-real-pull/consumer
+npx vbrand fuse stripe-com.candidate.json stripe-com.candidate.json
+# - Fusing schemas...
+# Cannot produce canonical schema from candidates. Missing required fields:
+#   assets.icons, tokens. Add more candidate sources or augment manually.
+```
+
+That failure is expected and tracked in the 0.3.0 close log; the fix is the
+`fuse --baseline` injection landing in 0.3.1.
+
+## The full intended production-command sequence (when 0.3.1 ships)
 
 ```bash
 # 1. Pull brand signals from a real URL
 npx @booga/vbrand pull https://stripe.com
 
-# 2. Fuse N candidate documents into one canonical vbrand.schema.json
-npx @booga/vbrand fuse stripe-com.candidate.json -o vbrand.schema.json
+# 2. Fuse candidates into one canonical vbrand.schema.json (baseline-injects missing fields)
+npx @booga/vbrand fuse --baseline stripe-com.candidate.json
 
-# 3. Emit the brand assets (favicons, OG image, design tokens, DESIGN.md)
+# 3. Emit brand assets (favicons, OG image, design tokens, DESIGN.md)
 npx @booga/vbrand emit
 
-# 4. Drop CI scaffolding files (workflow, Dockerfile, deploy manifest, secret-setter)
+# 4. Drop CI scaffolding (workflow + Dockerfile + deploy manifest + secret-setter)
 npx @booga/vbrand init-ci --forge=github
 
-# 5. Deploy to a docker-compatible host (localhost socket by default; SSH for remote)
+# 5. Deploy to a docker-compatible host
 npx @booga/vbrand deploy --target=compose-ssh --host=unix:///var/run/docker.sock
 ```
 
-After step 5: `http://localhost:8080` serves the brand-themed showcase site.
-
-## What each command produces
-
-- **pull**: writes `stripe-com.candidate.json` with cascade-filled voice + colors + favicons + logo evidence.
-- **fuse**: merges candidates under umbrella-wins precedence into the canonical `vbrand.schema.json`.
-- **emit**: writes `public/brand/{favicon-16,32,180,512.png, og.png, manifest.webmanifest, brand-tokens.css, swatches.json, DESIGN.md}`.
-- **init-ci**: writes `.github/workflows/vbrand-deploy.yml`, `.gitlab-ci.yml`, `Dockerfile` (multi-stage nginx|bun), `.dockerignore`, `vbrand.deploy.json` (single source of truth manifest), `scripts/vbrand-set-secrets.sh` (read-stdin → forge CLI; vBrand process never sees secret values).
-- **deploy**: renders `vbrand/.deploy/targets/compose-ssh/docker-compose.rendered.yml`, registers a Docker context, runs `docker compose pull && up -d`, appends to `vbrand/.deploy/history.jsonl`, prints the live URL.
-
-## The standing rule
-
-The demo IS the production flow. Every flag is a flag a paying user would type. Every file produced is a file a paying user gets. There is no `examples/demo`-only code path inside vBrand.
-
-## Free-tier vs paid-tier
-
-- **Free tier (this demo)**: vSsg static target + compose-ssh deploy + signed-registry-item HTTPS sync. Zero paid API.
-- **Paid tier (0.3.1+)**: Payload-on-Next.js preset (`vbrand emit --preset=payload`) + Fly.io deploy (`--target=fly`) + AI authoring (`--with-ai`). User supplies their own OpenAI/Anthropic key; vBrand never sees it.
+Until step 2 actually fuses without erroring, the demo can only honestly
+render step 1's output - which is what you see here.
 
 ## Dev-loop preview
-
-For local development of the showcase site (the React+Vite source that nginx serves):
 
 ```bash
 bun install

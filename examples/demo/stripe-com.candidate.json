@@ -1,0 +1,102 @@
+{
+  "$candidate": true,
+  "slug": "stripe-com",
+  "sourceUri": "https://stripe.com",
+  "fields": {
+    "name": {
+      "value": "Stripe",
+      "confidence": "medium",
+      "source": "og:title"
+    },
+    "voiceCanonical": {
+      "value": "Stripe | Financial Infrastructure to Grow Your Revenue",
+      "confidence": "high",
+      "source": "og:title"
+    },
+    "voiceDescription": {
+      "value": "Stripe is a financial services platform that helps all types of businesses accept payments, build flexible billing models, and manage money movement.",
+      "confidence": "high",
+      "source": "og:description"
+    },
+    "colors": {
+      "value": null,
+      "confidence": "none",
+      "reason": "dynamic-render-required",
+      "suggestion": "--color <hex>"
+    },
+    "typeTokens": {
+      "value": null,
+      "confidence": "none",
+      "reason": "absent-in-source"
+    },
+    "favicon": {
+      "value": {
+        "source": "/tmp/vbrand-real-pull/consumer/vbrand/.cache/stripe-com/favicon.svg",
+        "sizes": [
+          16,
+          32,
+          180,
+          512
+        ]
+      },
+      "confidence": "high",
+      "source": "link[rel=icon]"
+    },
+    "og": {
+      "value": {
+        "dimensions": [
+          1200,
+          630
+        ]
+      },
+      "confidence": "high",
+      "source": "default"
+    },
+    "icons": {
+      "value": null,
+      "confidence": "none",
+      "reason": "absent-in-source"
+    },
+    "marks": {
+      "value": null,
+      "confidence": "none",
+      "reason": "absent-in-source"
+    },
+    "themes": {
+      "value": null,
+      "confidence": "none",
+      "reason": "absent-in-source"
+    },
+    "illustration": {
+      "value": null,
+      "confidence": "none",
+      "reason": "absent-in-source"
+    },
+    "slots": {
+      "value": null,
+      "confidence": "none",
+      "reason": "absent-in-source"
+    },
+    "fusePolicies": {
+      "value": null,
+      "confidence": "none",
+      "reason": "absent-in-source"
+    }
+  },
+  "provenance": {
+    "pulledAt": "2026-05-31T08:18:40.051Z",
+    "degradations": [
+      {
+        "step": "colors-extract",
+        "reason": "dynamic-render-required"
+      }
+    ],
+    "assets": [
+      {
+        "field": "assets.favicon",
+        "sourceUrl": "https://images.stripeassets.com/fzn2n1nzq965/1hgcBNd12BfT9VLgbId7By/01d91920114b124fb4cf6d448f9f06eb/favicon.svg",
+        "localPath": "/tmp/vbrand-real-pull/consumer/vbrand/.cache/stripe-com/favicon.svg"
+      }
+    ]
+  }
+}

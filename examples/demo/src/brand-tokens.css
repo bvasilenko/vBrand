@@ -1,54 +1,26 @@
 /* SPDX-License-Identifier: MIT
  * Copyright (c) 2026 bvasilenko
  *
- * Tailwind directives + Stripe brand override at :root. The @tailwind directives
- * generate every utility vBlocks references at build time (max-w-6xl, lg:grid-cols-2,
- * mx-auto, py-24, etc.); the vTheme preset configured in tailwind.config.js wires
- * the oklch(var(--v-color-*)) bridge.
+ * Tailwind directives for the demo bundle. The @tailwind directives generate
+ * every utility vBlocks references at build time (max-w-6xl, lg:grid-cols-2,
+ * mx-auto, py-24, etc.); the vTheme preset configured in tailwind.config.js
+ * wires the oklch(var(--v-color-*)) bridge to vTheme 0.3.0's brand-neutral
+ * defaults.
  *
- * Brand values below are Stripe's published palette hand-tuned. In a real pipeline
- * these come from `vbrand pull stripe.com && vbrand fuse [--baseline] && vbrand emit`
- * and tokens.css drops in at this same slot.
+ * No :root color overrides are written here on purpose. The previous version
+ * of this file carried hand-tuned Stripe palette overrides that were authored
+ * by a human (the LLM-pastiche the owner correctly called out) - not produced
+ * by the deterministic vbrand pipeline. They have been stripped.
  *
- * Typography (Playfair Display / Inter / JetBrains Mono), tone colors, and font
- * sizing scales now live upstream in @booga/vtheme 0.3.0. This file owns ONLY
- * the brand-specific color overrides; it does NOT touch font-family, font-size,
- * or any tone-* tokens.
+ * The real brand tokens land at this slot once vBrand 0.3.1 ships
+ * fuse-baseline injection (AC#40 5-of-5 close): `vbrand pull` -> `vbrand fuse
+ * --baseline` -> `vbrand emit` will write `public/brand/brand-tokens.css` and
+ * that file replaces this comment with the OKLCH triples extracted (or
+ * baseline-injected at confidence:low) for the brand.
+ *
+ * Until then the cascade falls through to vTheme 0.3.0's defaults, which is
+ * brand-neutral - NOT Stripe-themed. That is the honest visual state.
  */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-:root {
-  --v-color-background: 98.07% 0.0051 247.9;
-  --v-color-foreground: 25.99% 0.0604 251.3;
-  --v-color-card: 100% 0 0;
-  --v-color-card-foreground: 25.99% 0.0604 251.3;
-  --v-color-popover: 100% 0 0;
-  --v-color-popover-foreground: 25.99% 0.0604 251.3;
-
-  --v-color-primary: 57.84% 0.2346 278.3;
-  --v-color-primary-foreground: 100% 0 0;
-
-  --v-color-secondary: 96% 0.012 250;
-  --v-color-secondary-foreground: 25.99% 0.0604 251.3;
-
-  --v-color-muted: 96% 0.008 250;
-  --v-color-muted-foreground: 50% 0.04 250;
-
-  --v-color-accent: 80.43% 0.1459 219.5;
-  --v-color-accent-foreground: 25.99% 0.0604 251.3;
-
-  --v-color-destructive: 55% 0.22 27;
-  --v-color-destructive-foreground: 99% 0.005 27;
-
-  --v-color-success: 76.80% 0.2535 143.4;
-  --v-color-success-foreground: 99% 0.005 145;
-
-  --v-color-warning: 70% 0.18 65;
-  --v-color-warning-foreground: 20% 0.05 65;
-
-  --v-color-border: 91% 0.012 250;
-  --v-color-input: 91% 0.012 250;
-  --v-color-ring: 57.84% 0.2346 278.3;
-}
