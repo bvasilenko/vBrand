@@ -1,6 +1,21 @@
 # vBrand
 
-CLI that turns one JSON schema into your project's brand assets and keeps them honest.
+<div align="center">
+
+### Live demo: [https://bvasilenko.github.io/vBrand/](https://bvasilenko.github.io/vBrand/)
+
+Brand-OS CLI. Pulls a brand from a URL, fuses + emits favicons + OG + design tokens, ships a branded website.
+
+```sh
+npm install @booga/vbrand
+npx @booga/vbrand --help
+```
+
+</div>
+
+---
+
+## Commands
 
 ```
 npx vbrand init [name]      scaffold Vite+React project + vbrand.schema.json
