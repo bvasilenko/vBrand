@@ -1,6 +1,6 @@
 {
   "name": "@booga/vbrand",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Active brand-operations layer: pull brand surfaces, fuse into canonical schema, emit deterministic assets, audit for drift, publish portable bundles.",
   "type": "module",
   "bin": {
