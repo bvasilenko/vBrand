@@ -8,7 +8,7 @@ export default [
     ignores: ['src/template/**'],
   },
   {
-    files: ['src/**/*.ts', 'tests/**/*.ts'],
+    files: ['src/**/*.{ts,tsx}', 'tests/**/*.ts'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

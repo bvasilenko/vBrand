@@ -1,6 +1,6 @@
 {
   "name": "@booga/vbrand",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Active brand-operations layer: pull brand surfaces, fuse into canonical schema, emit deterministic assets, audit for drift, publish portable bundles.",
   "type": "module",
   "bin": {
@@ -10,6 +10,22 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./adapters": {
+      "import": "./dist/adapters.js",
+      "types": "./dist/adapters.d.ts"
+    },
+    "./adapters/browser": {
+      "import": "./dist/adapters-browser.js",
+      "types": "./dist/adapters-browser.d.ts"
+    },
+    "./templates": {
+      "import": "./dist/templates.js",
+      "types": "./dist/templates.d.ts"
+    },
+    "./composition": {
+      "import": "./dist/composition.js",
+      "types": "./dist/composition.d.ts"
     }
   },
   "main": "./dist/index.js",
@@ -50,12 +66,43 @@
     "pixelmatch": "^7.2.0",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
-    "vitest": "^1.6.0"
+    "vitest": "^1.6.0",
+    "@booga/vblocks": "^0.4.0",
+    "@booga/vfixtures": "^0.1.1",
+    "@booga/vui": "^0.4.0",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "engines": {
     "node": ">=18"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "peerDependencies": {
+    "@booga/vblocks": "^0.4.0",
+    "@booga/vfixtures": "^0.1.1",
+    "@booga/vui": "^0.4.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@booga/vblocks": {
+      "optional": true
+    },
+    "@booga/vfixtures": {
+      "optional": true
+    },
+    "@booga/vui": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   }
 }
