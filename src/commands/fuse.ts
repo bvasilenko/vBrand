@@ -8,6 +8,10 @@ import { applyStrategy, FuseStrategy } from '../lib/fuse/strategies.js';
 import { stripEnvelopes } from '../lib/fuse/candidate-reader.js';
 import { ConfidenceLevel } from '../lib/pull/confidence.js';
 import { fileExists } from '../lib/fs.js';
+import { buildBaselinePartial } from '../lib/baseline/partial-builder.js';
+import { writeBaselineAssets } from '../lib/baseline/asset-writer.js';
+import { insertAtLowestPrecedence } from '../lib/baseline/precedence.js';
+import { BASELINE_CACHE_REL_DIR } from '../lib/baseline/schema-values.js';
 
 export interface FuseOptions {
   strategy?: FuseStrategy;
@@ -16,6 +20,7 @@ export interface FuseOptions {
   scrubListPath?: string;
   avatarPath?: string;
   acceptConfidence?: ConfidenceLevel;
+  injectBaseline?: boolean;
 }
 
 export interface ScrubFinding {
@@ -35,8 +40,13 @@ export async function runFuse(
   inputs: string[],
   opts: FuseOptions = {},
 ): Promise<FuseResult> {
-  if (inputs.length < 2) {
-    throw new Error('fuse requires at least two input schema paths');
+  const minimumInputs = opts.injectBaseline ? 1 : 2;
+  if (inputs.length < minimumInputs) {
+    throw new Error(
+      opts.injectBaseline
+        ? 'fuse --inject-baseline requires at least one input schema path'
+        : 'fuse requires at least two input schema paths',
+    );
   }
 
   const cwd = opts.cwd ?? process.cwd();
@@ -44,12 +54,16 @@ export async function runFuse(
   const outPath = opts.schemaPath ?? join(cwd, SCHEMA_FILENAME);
   const minConfidence = opts.acceptConfidence ?? 'medium';
 
-  const partials = inputs.map((inputPath) => {
+  const candidatePartials: Partial<VbrandType>[] = inputs.map((inputPath) => {
     const doc = loadCandidateDoc(inputPath);
     return stripEnvelopes(doc, minConfidence);
   });
 
-  const merged = applyStrategy(partials as unknown[], strategy);
+  const fusionPartials = opts.injectBaseline
+    ? await buildFusionPartialsWithBaseline(candidatePartials, strategy, cwd)
+    : candidatePartials;
+
+  const merged = applyStrategy(fusionPartials as unknown[], strategy);
 
   let parsed: VbrandType;
   try {
@@ -74,6 +88,17 @@ export async function runFuse(
   writeSchema(parsed, outPath);
 
   return { schema: parsed, schemaPath: outPath, strategy, scrubFindings };
+}
+
+async function buildFusionPartialsWithBaseline(
+  candidatePartials: Partial<VbrandType>[],
+  strategy: FuseStrategy,
+  cwd: string,
+): Promise<Partial<VbrandType>[]> {
+  const baselineCacheDir = join(cwd, BASELINE_CACHE_REL_DIR);
+  await writeBaselineAssets(baselineCacheDir);
+  const baseline = buildBaselinePartial();
+  return insertAtLowestPrecedence(candidatePartials, baseline, strategy);
 }
 
 function extractMissingFields(err: unknown): string {

@@ -29,7 +29,7 @@ else
   echo "probe: packed → $TARBALL"
 fi
 
-[[ -f "$TARBALL" ]] || { echo "probe: FAIL — tarball not found: $TARBALL" >&2; exit 1; }
+[[ -f "$TARBALL" ]] || { echo "probe: FAIL - tarball not found: $TARBALL" >&2; exit 1; }
 
 # --ignore-scripts skips postinstall native-binary downloads (sharp, @resvg/resvg-js);
 # those are exercised by the full test suite in the verify job.
@@ -41,7 +41,7 @@ echo "probe: installing tarball in pristine consumer dir ..."
 npm install "$TARBALL" --ignore-scripts --quiet
 
 VBRAND="$CONSUMER_DIR/node_modules/.bin/vbrand"
-[[ -x "$VBRAND" ]] || { echo "probe: FAIL — vbrand binary not found at $VBRAND" >&2; exit 1; }
+[[ -x "$VBRAND" ]] || { echo "probe: FAIL - vbrand binary not found at $VBRAND" >&2; exit 1; }
 echo "probe: binary reachable ✓"
 
 HELP_OUTPUT="$("$VBRAND" --help 2>&1)"
@@ -49,7 +49,7 @@ EXPECTED_COMMANDS=(pull fuse emit audit publish)
 
 for cmd in "${EXPECTED_COMMANDS[@]}"; do
   echo "$HELP_OUTPUT" | grep -qE "^\s+${cmd}\b" || {
-    echo "probe: FAIL — '${cmd}' absent from vbrand --help" >&2
+    echo "probe: FAIL - '${cmd}' absent from vbrand --help" >&2
     printf '%s\n' "$HELP_OUTPUT" >&2
     exit 1
   }
@@ -62,12 +62,12 @@ printf '{"name":"probe-consumer","tokens":{"color":{"primary":"#0066cc"}}}\n' > 
 
 CANDIDATE_COUNT="$(find "$CONSUMER_DIR" -maxdepth 1 -name '*.candidate.json' | wc -l | tr -d ' ')"
 [[ "$CANDIDATE_COUNT" -ge 1 ]] || {
-  echo "probe: FAIL — vbrand pull wrote no candidate JSON" >&2
+  echo "probe: FAIL - vbrand pull wrote no candidate JSON" >&2
   exit 1
 }
 
 echo "probe: vbrand pull (local) wrote candidate JSON ✓"
-echo "probe: OK — @booga/vbrand consumer probe passed"
+echo "probe: OK - @booga/vbrand consumer probe passed"
 echo "probe: running sync rig..."
 SYNC_PROBE_DIR="$(mktemp -d /tmp/vbrand-sync-probe-XXXXXX)"
 _sync_cleanup() { rm -rf "$SYNC_PROBE_DIR"; }
@@ -96,27 +96,27 @@ VBRAND_SYNC_PRIVATE_KEY_OUTPUT="$("$VBRAND" sync init "file://$DIST_DIR" --as-um
 VBRAND_SYNC_PRIVATE_KEY="$(echo "$VBRAND_SYNC_PRIVATE_KEY_OUTPUT" | grep VBRAND_SYNC_PRIVATE_KEY= | cut -d= -f2- | tr -d '[:space:]')"
 
 [[ -n "$VBRAND_SYNC_PRIVATE_KEY" ]] || {
-  echo "probe: FAIL — could not extract sync private key" >&2
+  echo "probe: FAIL - could not extract sync private key" >&2
   exit 1
 }
 
 VBRAND_SYNC_PRIVATE_KEY="$VBRAND_SYNC_PRIVATE_KEY" "$VBRAND" sync push --out-dir "$DIST_DIR" || {
-  echo "probe: FAIL — sync push failed" >&2
+  echo "probe: FAIL - sync push failed" >&2
   exit 1
 }
 echo "probe: sync push ✓"
 
 # Site A: clean adopt
 cd "$SITE_A"
-"$VBRAND" sync init "file://$DIST_DIR" || { echo "probe: FAIL — site-a sync init" >&2; exit 1; }
-"$VBRAND" sync pull || { echo "probe: FAIL — site-a sync pull" >&2; exit 1; }
+"$VBRAND" sync init "file://$DIST_DIR" || { echo "probe: FAIL - site-a sync init" >&2; exit 1; }
+"$VBRAND" sync pull || { echo "probe: FAIL - site-a sync pull" >&2; exit 1; }
 echo "probe: site-a sync pull ✓"
 
 # Site B: override declared before pull
 cd "$SITE_B"
-"$VBRAND" sync init "file://$DIST_DIR" || { echo "probe: FAIL — site-b sync init" >&2; exit 1; }
-"$VBRAND" sync override tokens.color.primary --value '"#ffffff"' --reason "site-b keeps white" || { echo "probe: FAIL — site-b override" >&2; exit 1; }
-"$VBRAND" sync pull || { echo "probe: FAIL — site-b sync pull" >&2; exit 1; }
+"$VBRAND" sync init "file://$DIST_DIR" || { echo "probe: FAIL - site-b sync init" >&2; exit 1; }
+"$VBRAND" sync override tokens.color.primary --value '"#ffffff"' --reason "site-b keeps white" || { echo "probe: FAIL - site-b override" >&2; exit 1; }
+"$VBRAND" sync pull || { echo "probe: FAIL - site-b sync pull" >&2; exit 1; }
 echo "probe: site-b sync pull with override ✓"
 
 # Poisoned bundle: push with handle in schema should fail
@@ -133,3 +133,61 @@ fi
 echo "probe: poisoned push correctly refused ✓"
 
 echo "probe: sync rig OK ✓"
+
+# sharp + @resvg/resvg-js native binaries require scripts enabled at install time.
+# Local fixture keeps the probe offline-deterministic; live-URL pull is unreliable in CI.
+echo "probe: running AC#40 5-of-5 fuse-baseline sequence..."
+AC40_DIR="$(mktemp -d /tmp/vbrand-ac40-probe-XXXXXX)"
+_ac40_cleanup() { rm -rf "$AC40_DIR"; }
+trap '_probe_cleanup; _sync_cleanup; _ac40_cleanup' EXIT
+
+AC40_CONSUMER="$AC40_DIR/consumer"
+mkdir -p "$AC40_CONSUMER"
+cd "$AC40_CONSUMER"
+npm init -y > /dev/null 2>&1
+
+echo "probe: installing tarball for AC#40 probe (with native scripts)..."
+npm install "$TARBALL" --quiet
+
+AC40_VBRAND="$AC40_CONSUMER/node_modules/.bin/vbrand"
+[[ -x "$AC40_VBRAND" ]] || { echo "probe: FAIL - AC#40 vbrand binary missing" >&2; exit 1; }
+
+printf '%s\n' '{"name":"probe-consumer","tokens":{"color":{"primary":"#0066cc"}}}' \
+  > "$AC40_CONSUMER/probe.json"
+"$AC40_VBRAND" pull "$AC40_CONSUMER/probe.json" > /dev/null 2>&1 || {
+  echo "probe: FAIL - AC#40 step 1 (pull) failed" >&2; exit 1;
+}
+AC40_CANDIDATE="$(find "$AC40_CONSUMER" -maxdepth 1 -name '*.candidate.json' | head -1)"
+[[ -n "$AC40_CANDIDATE" ]] || { echo "probe: FAIL - AC#40 step 1: no candidate.json written" >&2; exit 1; }
+echo "probe: AC#40 step 1 (pull) ✓"
+
+"$AC40_VBRAND" fuse "$AC40_CANDIDATE" --inject-baseline > /dev/null 2>&1 || {
+  echo "probe: FAIL - AC#40 step 2 (fuse --inject-baseline) failed" >&2; exit 1;
+}
+[[ -f "$AC40_CONSUMER/vbrand.schema.json" ]] || {
+  echo "probe: FAIL - AC#40 step 2: vbrand.schema.json not written" >&2; exit 1;
+}
+echo "probe: AC#40 step 2 (fuse --inject-baseline) ✓"
+
+"$AC40_VBRAND" emit > /dev/null 2>&1 || {
+  echo "probe: FAIL - AC#40 step 3 (emit) failed" >&2; exit 1;
+}
+echo "probe: AC#40 step 3 (emit) ✓"
+
+"$AC40_VBRAND" init-ci --forge=github > /dev/null 2>&1 || {
+  echo "probe: FAIL - AC#40 step 4 (init-ci) failed" >&2; exit 1;
+}
+[[ -f "$AC40_CONSUMER/vbrand.deploy.json" ]] || {
+  echo "probe: FAIL - AC#40 step 4: vbrand.deploy.json not written" >&2; exit 1;
+}
+echo "probe: AC#40 step 4 (init-ci) ✓"
+
+AC40_DEPLOY_OUT="$("$AC40_VBRAND" deploy --target=compose-ssh --dry-run 2>&1)"
+echo "$AC40_DEPLOY_OUT" | grep -qiE "dry.run|Live URL|localhost" || {
+  echo "probe: FAIL - AC#40 step 5 (deploy --dry-run) output unexpected" >&2
+  printf '%s\n' "$AC40_DEPLOY_OUT" >&2
+  exit 1
+}
+echo "probe: AC#40 step 5 (deploy --dry-run) ✓"
+
+echo "probe: AC#40 5-of-5 sequence OK ✓"

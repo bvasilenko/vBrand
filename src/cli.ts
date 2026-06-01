@@ -36,18 +36,26 @@ program
   });
 
 program
-  .command('fuse <a> <b> [rest...]')
+  .command('fuse <a> [b] [rest...]')
   .description('merge N schemas into one canonical vbrand.schema.json')
   .option(
     '--strategy <strategy>',
     'umbrella-wins | merge-patch | cascade',
     'umbrella-wins',
   )
-  .action(async (a: string, b: string, rest: string[], cmd: { strategy: string }) => {
+  .option('--inject-baseline', 'inject internal brand-neutral baseline at lowest precedence')
+  .action(async (
+    a: string,
+    b: string | undefined,
+    rest: string[],
+    cmd: { strategy: string; injectBaseline?: boolean },
+  ) => {
+    const inputs = b !== undefined ? [a, b, ...rest] : [a];
     const spinner = ora('Fusing schemas…').start();
     try {
-      const result = await runFuse([a, b, ...rest], {
+      const result = await runFuse(inputs, {
         strategy: cmd.strategy as 'umbrella-wins' | 'merge-patch' | 'cascade',
+        injectBaseline: cmd.injectBaseline,
       });
       spinner.succeed(chalk.green(`Fused → ${result.schemaPath} (${result.strategy})`));
       if (result.scrubFindings.length > 0) {
