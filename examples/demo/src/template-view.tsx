@@ -2,9 +2,9 @@
 // Copyright (c) 2026 bvasilenko
 import React, { useState, useEffect } from 'react';
 import type { VbrandType } from '@booga/vbrand/adapters/browser';
-import { CompositionEditor } from '@booga/vbrand/composition';
+import { CompositionEditorDemo } from './composition-editor-demo';
 import { compositionFromHash, compositionToHash } from '@booga/vbrand/composition';
-import { TEMPLATE_REGISTRY } from '@booga/vbrand/templates';
+import { TEMPLATE_REGISTRY, compositionMatchesTemplate } from '@booga/vbrand/templates';
 import type { TemplateId } from './router';
 
 interface TemplateViewProps {
@@ -14,8 +14,12 @@ interface TemplateViewProps {
 
 export function TemplateView({ brand, templateId }: TemplateViewProps) {
   const template = TEMPLATE_REGISTRY[templateId];
+
   const [composition, setComposition] = useState(() => {
-    return compositionFromHash(window.location.hash) ?? template.defaultComposition();
+    const fromHash = compositionFromHash(window.location.hash);
+    return compositionMatchesTemplate(fromHash, templateId)
+      ? fromHash
+      : template.defaultComposition();
   });
 
   useEffect(() => {
@@ -23,13 +27,21 @@ export function TemplateView({ brand, templateId }: TemplateViewProps) {
     history.replaceState(null, '', window.location.pathname + window.location.search + hash);
   }, [composition]);
 
+  useEffect(() => {
+    setComposition((prev) =>
+      compositionMatchesTemplate(prev, templateId)
+        ? prev
+        : template.defaultComposition(),
+    );
+  }, [templateId]);
+
   function handleReset() {
     setComposition(template.defaultComposition());
   }
 
   return (
     <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-      <CompositionEditor
+      <CompositionEditorDemo
         spec={composition}
         onChange={setComposition}
         onReset={handleReset}

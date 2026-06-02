@@ -17,3 +17,4 @@ vbrand/.cache/
 
 .playwright-cli/
 .vbrand/
+examples/demo/test-results/

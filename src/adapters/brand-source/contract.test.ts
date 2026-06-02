@@ -4,9 +4,10 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { VbrandSchema } from '../../schema.js';
+import { VbrandSchema, type VbrandType } from '../../schema.js';
 import { DefaultBrandSourceAdapter } from './default-adapter.js';
 import { BrowserBrandSourceAdapter } from './browser-adapter.js';
+import { CorsBlockedError } from './cors-error.js';
 import { resolveGitHubHomepage, resolveNpmHomepage } from './url-resolvers.js';
 import { fixtures } from '@booga/vfixtures';
 import { runFuse } from '../../commands/fuse.js';
@@ -40,6 +41,19 @@ const NPM_NOT_FOUND = () =>
     status: 404,
     headers: { 'Content-Type': 'application/json' },
   });
+
+const GH_FULL = (owner: string, repo: string, homepage: string | null) =>
+  new Response(
+    JSON.stringify({
+      name: repo,
+      full_name: `${owner}/${repo}`,
+      description: `${owner} SDK`,
+      homepage,
+      owner: { login: owner, avatar_url: `https://github.com/${owner}.png` },
+      topics: [],
+    }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  );
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -316,5 +330,104 @@ describe('DefaultBrandSourceAdapter: loadFromUrl structural equivalence', () => 
       return undefined as never;
     });
     await expect(adapter.loadFromUrl('https://stripe.com')).rejects.toThrow();
+  });
+});
+
+describe('BrowserBrandSourceAdapter.loadFromGitHub: cross-origin homepage pre-check', () => {
+  const OWNER = 'stripe';
+  const REPO = 'stripe-js';
+
+  it.each([
+    ['https://stripe.com', 'stripe', 'stripe-js'],
+    ['https://linear.app', 'linear', 'linear-app'],
+    ['https://vercel.com', 'vercel', 'vercel'],
+  ])(
+    'never fetches cross-origin homepage %s; all fetch calls stay on api.github.com',
+    async (homepage, owner, repo) => {
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce(GH_FULL(owner, repo, homepage))
+        .mockResolvedValueOnce(GH_FULL(owner, repo, homepage));
+      vi.stubGlobal('fetch', fetchMock);
+
+      await new BrowserBrandSourceAdapter().loadFromGitHub(owner, repo);
+
+      const calledUrls = fetchMock.mock.calls.map(([url]: [string]) => String(url));
+      const homepageHostname = new URL(homepage).hostname;
+      expect(calledUrls.every((url) => url.includes('api.github.com'))).toBe(true);
+      expect(calledUrls.every((url) => !url.includes(homepageHostname))).toBe(true);
+    },
+  );
+
+  it('returns a VbrandSchema-valid brand derived from GitHub metadata when homepage is cross-origin', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(GH_FULL(OWNER, REPO, 'https://stripe.com'))
+      .mockResolvedValueOnce(GH_FULL(OWNER, REPO, 'https://stripe.com')));
+
+    const result = await new BrowserBrandSourceAdapter().loadFromGitHub(OWNER, REPO);
+
+    expect(VbrandSchema.safeParse(result).success).toBe(true);
+  });
+
+  it('result carries the github:{owner}/{repo} source tag', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(GH_FULL(OWNER, REPO, 'https://stripe.com'))
+      .mockResolvedValueOnce(GH_FULL(OWNER, REPO, 'https://stripe.com')));
+
+    const result = await new BrowserBrandSourceAdapter().loadFromGitHub(OWNER, REPO);
+
+    expect(result.sources).toContain(`github:${OWNER}/${REPO}`);
+  });
+
+  it('takes the metadata path when GitHub Pages fallback URL is also cross-origin', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(GH_FULL(OWNER, REPO, null))
+      .mockResolvedValueOnce(GH_FULL(OWNER, REPO, null));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new BrowserBrandSourceAdapter().loadFromGitHub(OWNER, REPO);
+
+    expect(VbrandSchema.safeParse(result).success).toBe(true);
+    const calledUrls = fetchMock.mock.calls.map(([url]: [string]) => String(url));
+    expect(calledUrls.some((url) => url.includes('github.io'))).toBe(false);
+  });
+
+  it('calls loadFromUrl when the resolved homepage is same-origin as the page', async () => {
+    const SAME_ORIGIN_HOMEPAGE = 'https://my-app.com/brand';
+    vi.stubGlobal('location', { origin: 'https://my-app.com' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(GH_FULL(OWNER, REPO, SAME_ORIGIN_HOMEPAGE)));
+
+    const adapter = new BrowserBrandSourceAdapter();
+    const spy = vi.spyOn(adapter, 'loadFromUrl').mockResolvedValueOnce(stripeFixture as VbrandType);
+
+    await adapter.loadFromGitHub(OWNER, REPO);
+
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalledWith(SAME_ORIGIN_HOMEPAGE);
+  });
+
+  it('falls back to GitHub metadata when loadFromUrl throws CorsBlockedError', async () => {
+    const SAME_ORIGIN_HOMEPAGE = 'https://my-app.com/brand';
+    vi.stubGlobal('location', { origin: 'https://my-app.com' });
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(GH_FULL(OWNER, REPO, SAME_ORIGIN_HOMEPAGE))
+      .mockResolvedValueOnce(GH_FULL(OWNER, REPO, SAME_ORIGIN_HOMEPAGE)));
+
+    const adapter = new BrowserBrandSourceAdapter();
+    vi.spyOn(adapter, 'loadFromUrl').mockRejectedValueOnce(new CorsBlockedError(SAME_ORIGIN_HOMEPAGE));
+
+    const result = await adapter.loadFromGitHub(OWNER, REPO);
+
+    expect(VbrandSchema.safeParse(result).success).toBe(true);
+  });
+
+  it('propagates non-CORS errors from loadFromUrl without swallowing them', async () => {
+    const SAME_ORIGIN_HOMEPAGE = 'https://my-app.com/brand';
+    vi.stubGlobal('location', { origin: 'https://my-app.com' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(GH_FULL(OWNER, REPO, SAME_ORIGIN_HOMEPAGE)));
+
+    const adapter = new BrowserBrandSourceAdapter();
+    vi.spyOn(adapter, 'loadFromUrl').mockRejectedValueOnce(new Error('upstream-500'));
+
+    await expect(adapter.loadFromGitHub(OWNER, REPO)).rejects.toThrow('upstream-500');
   });
 });

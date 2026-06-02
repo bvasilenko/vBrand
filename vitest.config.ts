@@ -18,5 +18,6 @@ export default defineConfig({
       },
     },
     testTimeout: 60000,
+    exclude: ['**/node_modules/**', '**/dist/**', 'examples/demo/tests/runtime-probe/**'],
   },
 });
