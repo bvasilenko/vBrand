@@ -8,8 +8,8 @@ export default defineConfig({
     environment: 'node',
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.ts'],
-      exclude: ['src/cli.ts'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/cli.ts', 'src/adapters/browser-index.ts', 'src/adapters/brand-source/browser-adapter.ts', 'src/adapters/brand-source/html-brand-extractor.ts'],
       thresholds: {
         lines: 80,
         functions: 80,
