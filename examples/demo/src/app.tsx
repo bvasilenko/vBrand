@@ -6,15 +6,18 @@ import { NavBar } from './nav-bar';
 import { TemplateView } from './template-view';
 import { DataView } from './data-view';
 import { parseRoute, brandParamToString } from './router';
-import { loadBrand } from './brand-loader';
+import { loadBrand, type BrandMeta } from './brand-loader';
 
 type ViewTab = 'template' | 'data';
+
+const DEFAULT_META: BrandMeta = { colorFallbackActive: false, faviconBundled: false };
 
 export function App() {
   const route = parseRoute(window.location.search);
   const brandLabel = brandParamToString(route.brandParams);
 
   const [brand, setBrand] = useState<VbrandType | null>(null);
+  const [meta, setMeta] = useState<BrandMeta>(DEFAULT_META);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ViewTab>('template');
@@ -26,7 +29,8 @@ export function App() {
     loadBrand(route.brandParams)
       .then((result) => {
         if (!cancelled) {
-          setBrand(result);
+          setBrand(result.brand);
+          setMeta(result.meta);
           setIsLoading(false);
         }
       })
@@ -56,7 +60,7 @@ export function App() {
           <TemplateView brand={brand} templateId={route.templateId} />
         )}
         {!isLoading && !error && brand && activeTab === 'data' && (
-          <DataView brand={brand} sourceLabel={brandLabel} />
+          <DataView brand={brand} sourceLabel={brandLabel} meta={meta} />
         )}
       </div>
     </div>
