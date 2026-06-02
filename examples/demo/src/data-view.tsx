@@ -3,15 +3,22 @@
 import React from 'react';
 import type { VbrandType } from '@booga/vbrand/adapters/browser';
 import { Stack, Inline, Box, Pill, Card, CardHeader, CardTitle, CardContent } from '@booga/vui';
+import type { BrandMeta } from './brand-loader';
 
 interface DataViewProps {
   brand: VbrandType;
   sourceLabel: string;
+  meta: BrandMeta;
 }
 
-export function DataView({ brand, sourceLabel }: DataViewProps) {
+export function DataView({ brand, sourceLabel, meta }: DataViewProps) {
   const colorCount = Object.keys(brand.tokens.color).length;
   const typeCount = Object.keys(brand.tokens.type).length;
+  const faviconSource = brand.assets.favicon.source;
+  // Render the favicon as an actual <img> when the source is a relative
+  // bundled-asset path (no scheme). External URLs render as code-text only
+  // because cross-origin fetch can fail in the hosted-demo context.
+  const faviconIsBundled = meta.faviconBundled && !/^[a-z]+:\/\//i.test(faviconSource);
 
   return (
     <Box as="section" style={{ padding: '32px', maxWidth: '900px', margin: '0 auto' }}>
@@ -21,6 +28,12 @@ export function DataView({ brand, sourceLabel }: DataViewProps) {
           <Pill tone="ok">VbrandSchema valid</Pill>
           <Pill tone="info">{colorCount} color tokens</Pill>
           <Pill tone="info">{typeCount} type tokens</Pill>
+          {meta.colorFallbackActive && (
+            <Pill tone="warn">color fallback active</Pill>
+          )}
+          {meta.faviconBundled && (
+            <Pill tone="info">favicon bundled</Pill>
+          )}
         </Inline>
 
         <Card>
@@ -76,7 +89,20 @@ export function DataView({ brand, sourceLabel }: DataViewProps) {
           <CardHeader><CardTitle>Assets</CardTitle></CardHeader>
           <CardContent>
             <Stack gap={2}>
-              <div><strong>favicon:</strong> <code>{brand.assets.favicon.source}</code> [{brand.assets.favicon.sizes.join(', ')}]</div>
+              <Inline gap={2} align="center">
+                <strong>favicon:</strong>
+                {faviconIsBundled && (
+                  <img
+                    src={faviconSource}
+                    alt={`${brand.name} favicon`}
+                    width={20}
+                    height={20}
+                    style={{ display: 'block', borderRadius: '3px' }}
+                  />
+                )}
+                <code>{faviconSource}</code>
+                <span>[{brand.assets.favicon.sizes.join(', ')}]</span>
+              </Inline>
               <div><strong>og dimensions:</strong> {brand.assets.og.dimensions.join(' x ')}</div>
               {brand.assets.og.source && (
                 <div><strong>og source:</strong> <code>{brand.assets.og.source}</code></div>

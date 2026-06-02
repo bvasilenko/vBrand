@@ -13,7 +13,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 concurrency:
@@ -172,3 +172,59 @@ jobs:
         run: npm deprecate "@booga/vbrand@0.2.0" "0.2.0 missed extractable voice fields and CSS-color fallback; superseded by 0.2.1" || true
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  gh-pages-deploy:
+    # Hosted-demo refresh on tag push so gh-pages tracks the latest published
+    # npm version. examples/demo build resolves @booga/vbrand from the local
+    # dist/ produced in the build step above; vite base is /vBrand/.
+    needs: [verify, publish]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: setup-bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.x
+          no-cache: true
+
+      - name: install-root
+        run: bun install --frozen-lockfile
+
+      - name: build-root
+        run: bun run build
+
+      - name: install-demo
+        working-directory: examples/demo
+        run: bun install --frozen-lockfile
+
+      - name: build-demo
+        working-directory: examples/demo
+        env:
+          VITE_BASE: /vBrand/
+        run: bun run build
+
+      - name: publish-gh-pages
+        # Push examples/demo/dist as the gh-pages branch root; .nojekyll keeps
+        # underscore-prefixed asset paths if any are introduced later.
+        run: |
+          set -euo pipefail
+          DEPLOY_DIR=$(mktemp -d)
+          cp -R examples/demo/dist/. "$DEPLOY_DIR/"
+          touch "$DEPLOY_DIR/.nojekyll"
+          cd "$DEPLOY_DIR"
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q -b gh-pages
+          git add -A
+          git commit -q -m "gh-pages: deploy ${GITHUB_REF_NAME}"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}

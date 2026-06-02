@@ -54,7 +54,7 @@ export function NavBar({ currentBrand, currentTemplate, isLoading }: NavBarProps
       }}
     >
       <span style={{ fontWeight: 700, color: 'var(--color-primary, #6366f1)', flexShrink: 0 }}>
-        vBrand 0.4.0
+        vBrand 0.4.0-alpha.2
       </span>
 
       <span style={{ color: 'var(--color-neutral-400, #9ca3af)', flexShrink: 0 }}>brand:</span>
