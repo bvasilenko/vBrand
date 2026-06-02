@@ -10,19 +10,11 @@ const REACT_EXTERNALS = [
 ];
 
 const VBLOCK_EXTERNALS = [
-  '@booga/vblocks',
   '@booga/vblocks/hero',
   '@booga/vblocks/features',
   '@booga/vblocks/cta',
   '@booga/vblocks/footer',
   '@booga/vblocks/testimonial',
-  '@booga/vblocks/blog',
-  '@booga/vblocks/business',
-  '@booga/vblocks/faq',
-  '@booga/vblocks/team',
-  '@booga/vblocks/gallery',
-  '@booga/vblocks/portfolio',
-  '@booga/vblocks/post',
   '@booga/vui',
 ];
 

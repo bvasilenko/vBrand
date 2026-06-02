@@ -73,7 +73,7 @@ describe('SectionSpecSchema - shape invariants', () => {
   });
 
   it('rejects missing visible field', () => {
-    const { visible: _, ...rest } = makeSection('hero', 0); void _;
+    const { visible: _, ...rest } = makeSection('hero', 0);
     expect(SectionSpecSchema.safeParse(rest).success).toBe(false);
   });
 });
@@ -164,6 +164,10 @@ describe('compositionToHash / compositionFromHash - round-trip', () => {
 
   it('fromHash returns null when the encoded value is corrupted', () => {
     expect(compositionFromHash('#composition=!!!invalid!!!')).toBeNull();
+  });
+
+  it('fromHash returns null when composition key is present with empty value', () => {
+    expect(compositionFromHash('#composition=')).toBeNull();
   });
 });
 
@@ -257,6 +261,13 @@ describe('updateSection - patch semantics', () => {
       threeSection.sections.filter((s) => s.id !== 'hero'),
     );
   });
+
+  it('patching both visible and density simultaneously applies both changes', () => {
+    const updated = updateSection(threeSection, 'hero', { visible: false, density: 'compact' });
+    const hero = updated.sections.find((s) => s.id === 'hero')!;
+    expect(hero.visible).toBe(false);
+    expect(hero.density).toBe('compact');
+  });
 });
 
 describe('reorderSections - order reassignment', () => {
@@ -300,5 +311,21 @@ describe('reorderSections - order reassignment', () => {
   it('section count is preserved after reorder', () => {
     const reordered = reorderSections(threeSection, 0, 2);
     expect(reordered.sections).toHaveLength(threeSection.sections.length);
+  });
+
+  it('two-section swap produces reversed order', () => {
+    const two: CompositionSpec = { sections: [makeSection('first', 0), makeSection('second', 1)] };
+    const reordered = reorderSections(two, 0, 1);
+    const sorted = sectionsByOrder(reordered);
+    expect(sorted[0]!.id).toBe('second');
+    expect(sorted[1]!.id).toBe('first');
+  });
+
+  it('two-section swap preserves contiguous 0..1 order sequence', () => {
+    const two: CompositionSpec = { sections: [makeSection('a', 0), makeSection('b', 1)] };
+    const reordered = reorderSections(two, 0, 1);
+    const sorted = sectionsByOrder(reordered);
+    expect(sorted[0]!.order).toBe(0);
+    expect(sorted[1]!.order).toBe(1);
   });
 });

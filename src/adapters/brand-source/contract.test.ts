@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { VbrandSchema } from '../../schema.js';
 import { DefaultBrandSourceAdapter } from './default-adapter.js';
+import { BrowserBrandSourceAdapter } from './browser-adapter.js';
 import { resolveGitHubHomepage, resolveNpmHomepage } from './url-resolvers.js';
 import { fixtures } from '@booga/vfixtures';
+import { runFuse } from '../../commands/fuse.js';
+
+vi.mock('../../commands/pull.js');
+vi.mock('../../commands/fuse.js');
+
 
 const stripeFixture = fixtures.stripe;
 
@@ -144,6 +150,45 @@ describe('DefaultBrandSourceAdapter: structural equivalence', () => {
   });
 });
 
+describe('BrowserBrandSourceAdapter: pure-source methods', () => {
+  const adapter = new BrowserBrandSourceAdapter();
+
+  it('loadFromLocalJson always throws with a message indicating browser context', async () => {
+    await expect(adapter.loadFromLocalJson('/any/path.json')).rejects.toThrow(/browser/i);
+  });
+
+  it('loadFromLocalJson throws regardless of the path argument', async () => {
+    await expect(adapter.loadFromLocalJson('')).rejects.toThrow();
+    await expect(adapter.loadFromLocalJson('/nonexistent/path')).rejects.toThrow();
+  });
+
+  it('loadFromCustomJson accepts valid payload and returns VbrandSchema-valid object', async () => {
+    const result = await adapter.loadFromCustomJson(stripeFixture);
+    expect(VbrandSchema.safeParse(result).success).toBe(true);
+  });
+
+  it('loadFromCustomJson rejects null payload', async () => {
+    await expect(adapter.loadFromCustomJson(null)).rejects.toThrow();
+  });
+
+  it('loadFromCustomJson rejects string payload', async () => {
+    await expect(adapter.loadFromCustomJson('{"name":"x"}')).rejects.toThrow();
+  });
+
+  it('loadFromFixture returns VbrandSchema-valid object for all known slugs', async () => {
+    const slugs = ['stripe', 'vercel', 'linear', 'notion', 'github'];
+    for (const slug of slugs) {
+      const result = await adapter.loadFromFixture(slug);
+      expect(VbrandSchema.safeParse(result).success, `fixture "${slug}" failed`).toBe(true);
+    }
+  });
+
+  it('loadFromFixture rejects unknown handle', async () => {
+    await expect(adapter.loadFromFixture('does-not-exist-xyz')).rejects.toThrow();
+  });
+});
+
+
 describe('resolveGitHubHomepage - URL resolution', () => {
   afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -225,5 +270,51 @@ describe('resolveNpmHomepage - URL resolution', () => {
     const url = await resolveNpmHomepage('@scope/pkg');
     expect(url).toContain('npmjs.com');
     expect(url).not.toContain('@scope/pkg');
+  });
+});
+
+describe('DefaultBrandSourceAdapter: loadFromUrl structural equivalence', () => {
+  const adapter = new DefaultBrandSourceAdapter();
+
+  beforeEach(() => {
+    vi.mocked(runFuse).mockImplementation(async (_inputs, opts) => {
+      const { schemaPath } = opts as { schemaPath: string };
+      writeFileSync(schemaPath, JSON.stringify(stripeFixture));
+      return undefined as never;
+    });
+  });
+
+  afterEach(() => { vi.clearAllMocks(); });
+
+  it('loadFromUrl result is VbrandSchema-valid', async () => {
+    const result = await adapter.loadFromUrl('https://stripe.com');
+    expect(VbrandSchema.safeParse(result).success).toBe(true);
+  });
+
+  it('loadFromUrl result has same top-level key shape as loadFromFixture', async () => {
+    const fromUrl = await adapter.loadFromUrl('https://stripe.com');
+    const fromFixture = await adapter.loadFromFixture('stripe');
+    expect(Object.keys(fromUrl).sort()).toEqual(Object.keys(fromFixture).sort());
+  });
+
+  it('loadFromUrl calls runFuse with the tmp schemaPath', async () => {
+    await adapter.loadFromUrl('https://stripe.com');
+    expect(vi.mocked(runFuse)).toHaveBeenCalledOnce();
+    const [, opts] = vi.mocked(runFuse).mock.calls[0]!;
+    expect((opts as { schemaPath: string }).schemaPath).toMatch(/vbrand\.schema\.json$/);
+  });
+
+  it('loadFromUrl propagates a runFuse error to the caller', async () => {
+    vi.mocked(runFuse).mockRejectedValueOnce(new Error('fuse-failed'));
+    await expect(adapter.loadFromUrl('https://stripe.com')).rejects.toThrow('fuse-failed');
+  });
+
+  it('loadFromUrl throws when runFuse writes invalid JSON', async () => {
+    vi.mocked(runFuse).mockImplementation(async (_inputs, opts) => {
+      const { schemaPath } = opts as { schemaPath: string };
+      writeFileSync(schemaPath, '{ invalid json }');
+      return undefined as never;
+    });
+    await expect(adapter.loadFromUrl('https://stripe.com')).rejects.toThrow();
   });
 });

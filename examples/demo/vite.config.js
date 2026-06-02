@@ -2,13 +2,23 @@
 // Copyright (c) 2026 bvasilenko
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
-// Base path for GitHub Pages hosting at https://bvasilenko.github.io/vBrand/.
-// Override via VITE_BASE=/ for local dev or other deploy targets.
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const root = path.resolve(__dirname, '../..');
+
 const base = process.env.VITE_BASE ?? '/vBrand/';
 
 export default defineConfig({
   plugins: [react()],
   base,
   server: { port: 5290 },
+  resolve: {
+    alias: {
+      '@booga/vbrand/adapters/browser': path.resolve(root, 'dist/adapters-browser.js'),
+      '@booga/vbrand/templates': path.resolve(root, 'dist/templates.js'),
+      '@booga/vbrand/composition': path.resolve(root, 'dist/composition.js'),
+    },
+  },
 });

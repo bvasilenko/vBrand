@@ -71,22 +71,6 @@ export function deriveTestimonialContent() {
   } as const;
 }
 
-export function deriveBlogContent(brand: VbrandType, density?: Density) {
-  return {
-    heading: `${brand.name} insights`,
-    posts: [
-      {
-        title: 'Design system foundations',
-        excerpt: brand.voice.canonical,
-        href: '#',
-        date: new Date().toISOString().slice(0, 10),
-        author: brand.name,
-      },
-    ],
-    density: toBlockDensity(density),
-  } as const;
-}
-
 export function deriveThemeOverride(brand: VbrandType): Record<string, string> {
   const overrides: Record<string, string> = {};
   if (brand.tokens.color['primary']) {
