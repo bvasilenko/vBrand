@@ -3,6 +3,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseRoute,
+  parseViewFromPath,
+  buildViewPath,
   buildSearchString,
   brandParamToString,
   type BrandParams,
@@ -270,4 +272,74 @@ describe('parseRoute + brandParamToString - round-trip for all valid param types
       expect(parseRoute(search).brandParams).toEqual(params);
     },
   );
+});
+
+describe('parseViewFromPath - data path detection', () => {
+  it('returns "data" for /vBrand/data when base is /vBrand/', () => {
+    expect(parseViewFromPath('/vBrand/data', '/vBrand/')).toBe('data');
+  });
+
+  it('returns "template" for /vBrand/ when base is /vBrand/', () => {
+    expect(parseViewFromPath('/vBrand/', '/vBrand/')).toBe('template');
+  });
+
+  it('returns "template" for /vBrand/random-path', () => {
+    expect(parseViewFromPath('/vBrand/random-path', '/vBrand/')).toBe('template');
+  });
+
+  it('returns "data" for /data when base is /', () => {
+    expect(parseViewFromPath('/data', '/')).toBe('data');
+  });
+
+  it('returns "template" for / when base is /', () => {
+    expect(parseViewFromPath('/', '/')).toBe('template');
+  });
+
+  it('returns "data" for /vBrand/data/ with trailing slash', () => {
+    expect(parseViewFromPath('/vBrand/data/', '/vBrand/')).toBe('data');
+  });
+
+  it('does not match /vBrand/update-data as data view', () => {
+    expect(parseViewFromPath('/vBrand/update-data', '/vBrand/')).toBe('template');
+  });
+
+  it('deep nested path maps to "template" (SPA fallback: all sub-routes serve the shell)', () => {
+    expect(parseViewFromPath('/vBrand/settings/deep/nested', '/vBrand/')).toBe('template');
+  });
+});
+
+describe('parseRoute - view field integration', () => {
+  it('returns view "data" when pathname is /vBrand/data', () => {
+    expect(parseRoute('?app=landing', '/vBrand/data').view).toBe('data');
+  });
+
+  it('returns view "template" when pathname is /vBrand/', () => {
+    expect(parseRoute('?app=landing', '/vBrand/').view).toBe('template');
+  });
+
+  it('returns view "template" for unknown paths (SPA shell fallback)', () => {
+    expect(parseRoute('?', '/vBrand/random-path').view).toBe('template');
+  });
+
+  it('returns view "template" when no pathname provided (default)', () => {
+    expect(parseRoute('brand=fixture:stripe').view).toBe('template');
+  });
+});
+
+describe('buildViewPath - constructs correct URL path for each view', () => {
+  it('template view with /vBrand/ base returns /vBrand/', () => {
+    expect(buildViewPath('template', '/vBrand/')).toBe('/vBrand/');
+  });
+
+  it('data view with /vBrand/ base returns /vBrand/data', () => {
+    expect(buildViewPath('data', '/vBrand/')).toBe('/vBrand/data');
+  });
+
+  it('template view with / base returns /', () => {
+    expect(buildViewPath('template', '/')).toBe('/');
+  });
+
+  it('data view with / base returns /data', () => {
+    expect(buildViewPath('data', '/')).toBe('/data');
+  });
 });

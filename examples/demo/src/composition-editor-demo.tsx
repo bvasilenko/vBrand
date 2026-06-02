@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
 import React, { useState } from 'react';
-import type { CompositionSpec, Density, SectionSpec } from './spec.js';
-import { sectionsByOrder, updateSection, reorderSections } from './spec.js';
-import { DensityChips } from './density-chips.js';
+import type { CompositionSpec, SectionSpec, Density } from '@booga/vbrand/composition';
+import { sectionsByOrder, updateSection, reorderSections, DensityChips } from '@booga/vbrand/composition';
 
-export interface CompositionEditorProps {
+export interface CompositionEditorDemoProps {
   spec: CompositionSpec;
   onChange: (spec: CompositionSpec) => void;
   onReset: () => void;
 }
 
-export function CompositionEditor({ spec, onChange, onReset }: CompositionEditorProps) {
+export function CompositionEditorDemo({ spec, onChange, onReset }: CompositionEditorDemoProps) {
   const [dragFromOrder, setDragFromOrder] = useState<number | null>(null);
   const sorted = sectionsByOrder(spec);
 
   function handleToggle(id: string) {
-    onChange(updateSection(spec, id, { visible: !spec.sections.find((s) => s.id === id)!.visible }));
+    const section = spec.sections.find((s) => s.id === id)!;
+    onChange(updateSection(spec, id, { visible: !section.visible }));
   }
 
   function handleDensity(id: string, density: Density) {
@@ -78,7 +78,7 @@ export function CompositionEditor({ spec, onChange, onReset }: CompositionEditor
         style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}
       >
         {sorted.map((section) => (
-          <SectionRow
+          <DemoSectionRow
             key={section.id}
             section={section}
             onToggle={handleToggle}
@@ -95,7 +95,7 @@ export function CompositionEditor({ spec, onChange, onReset }: CompositionEditor
   );
 }
 
-interface SectionRowProps {
+interface DemoSectionRowProps {
   section: SectionSpec;
   onToggle: (id: string) => void;
   onDensity: (id: string, density: Density) => void;
@@ -106,7 +106,7 @@ interface SectionRowProps {
   onDrop: () => void;
 }
 
-function SectionRow({
+function DemoSectionRow({
   section,
   onToggle,
   onDensity,
@@ -115,7 +115,7 @@ function SectionRow({
   onDragStart,
   onDragOver,
   onDrop,
-}: SectionRowProps) {
+}: DemoSectionRowProps) {
   return (
     <li
       role="option"
@@ -147,13 +147,13 @@ function SectionRow({
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <input
           type="checkbox"
-          id={`section-${section.id}`}
+          id={`demo-section-${section.id}`}
           checked={section.visible}
           onChange={() => onToggle(section.id)}
           style={{ cursor: 'pointer' }}
         />
         <label
-          htmlFor={`section-${section.id}`}
+          htmlFor={`demo-section-${section.id}`}
           style={{ fontSize: '0.8125rem', fontWeight: 500, cursor: 'pointer', flex: 1, fontFamily: 'monospace' }}
         >
           {section.id}

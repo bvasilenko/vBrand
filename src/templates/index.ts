@@ -10,5 +10,6 @@ export {
   TEMPLATE_REGISTRY,
   getTemplate,
   isTemplateId,
+  compositionMatchesTemplate,
 } from './registry.js';
 export type { TemplateId } from './registry.js';

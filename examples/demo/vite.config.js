@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { viteCopy404Plugin } from './vite-plugin-copy-404.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const root = path.resolve(__dirname, '../..');
@@ -11,7 +12,7 @@ const root = path.resolve(__dirname, '../..');
 const base = process.env.VITE_BASE ?? '/vBrand/';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), viteCopy404Plugin()],
   base,
   server: { port: 5290 },
   resolve: {

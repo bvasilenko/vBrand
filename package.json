@@ -1,6 +1,6 @@
 {
   "name": "@booga/vbrand",
-  "version": "0.4.0-alpha.2",
+  "version": "0.4.0-alpha.3",
   "description": "Active brand-operations layer: pull brand surfaces, fuse into canonical schema, emit deterministic assets, audit for drift, publish portable bundles.",
   "type": "module",
   "bin": {
@@ -41,7 +41,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests --max-warnings 0",
     "test": "vitest run --coverage",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test --config examples/demo/playwright.config.ts"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
@@ -58,22 +59,23 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@booga/vblocks": "^0.4.0",
+    "@booga/vfixtures": "^0.1.1",
+    "@booga/vui": "^0.4.0",
+    "@playwright/test": "^1.44.0",
     "@types/jsdom": "^21.1.7",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "@vitest/coverage-v8": "^1.6.0",
     "eslint": "^8.57.0",
     "pixelmatch": "^7.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
-    "vitest": "^1.6.0",
-    "@booga/vblocks": "^0.4.0",
-    "@booga/vfixtures": "^0.1.1",
-    "@booga/vui": "^0.4.0",
-    "@types/react": "^18.3.1",
-    "@types/react-dom": "^18.3.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "vitest": "^1.6.0"
   },
   "engines": {
     "node": ">=18"

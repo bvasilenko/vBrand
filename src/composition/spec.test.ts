@@ -169,6 +169,22 @@ describe('compositionToHash / compositionFromHash - round-trip', () => {
   it('fromHash returns null when composition key is present with empty value', () => {
     expect(compositionFromHash('#composition=')).toBeNull();
   });
+
+  it.each(['compact', 'regular', 'spacious'] as const)(
+    'density "%s" survives compositionToHash → compositionFromHash without loss',
+    (density) => {
+      const updated = updateSection(threeSection, 'hero', { density });
+      const decoded = compositionFromHash(compositionToHash(updated));
+      expect(decoded?.sections.find((s) => s.id === 'hero')?.density).toBe(density);
+    },
+  );
+
+  it('each of the three density values produces a distinct hash for the same base spec', () => {
+    const hashes = (['compact', 'regular', 'spacious'] as const).map(
+      (d) => compositionToHash(updateSection(threeSection, 'hero', { density: d })),
+    );
+    expect(new Set(hashes).size).toBe(3);
+  });
 });
 
 describe('sectionsByOrder - sort behavior', () => {

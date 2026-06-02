@@ -4,7 +4,13 @@ import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
 import { fixtures } from '@booga/vfixtures';
-import { TEMPLATE_IDS, TEMPLATE_REGISTRY, getTemplate, isTemplateId } from './registry.js';
+import {
+  TEMPLATE_IDS,
+  TEMPLATE_REGISTRY,
+  getTemplate,
+  isTemplateId,
+  compositionMatchesTemplate,
+} from './registry.js';
 import type { VbrandType } from '../schema.js';
 import type { CompositionSpec } from '../composition/spec.js';
 
@@ -134,6 +140,19 @@ describe('AppTypeTemplate registry - composition filtering', () => {
   });
 });
 
+describe('AppTypeTemplate registry - section vocabulary isolation', () => {
+  for (const fromId of TEMPLATE_IDS) {
+    for (const toId of TEMPLATE_IDS) {
+      if (fromId === toId) continue;
+      it(`${toId}: compose() with ${fromId} sections produces less output than with own sections`, () => {
+        const withForeign = render(toId, fixtures.stripe, getTemplate(fromId).defaultComposition());
+        const withOwn = render(toId, fixtures.stripe, getTemplate(toId).defaultComposition());
+        expect(withForeign.length).toBeLessThan(withOwn.length);
+      });
+    }
+  }
+});
+
 describe('AppTypeTemplate registry - registry accessor contract', () => {
   it('isTemplateId accepts all registered template ids', () => {
     for (const id of TEMPLATE_IDS) {
@@ -155,4 +174,102 @@ describe('AppTypeTemplate registry - registry accessor contract', () => {
   it('TEMPLATE_IDS contains no duplicate entries', () => {
     expect(TEMPLATE_IDS.length).toBe(new Set(TEMPLATE_IDS).size);
   });
+});
+
+describe('compositionMatchesTemplate: degenerate inputs', () => {
+  it('null returns false regardless of template', () => {
+    for (const id of TEMPLATE_IDS) {
+      expect(compositionMatchesTemplate(null, id)).toBe(false);
+    }
+  });
+
+  it('empty sections array returns false', () => {
+    expect(compositionMatchesTemplate({ sections: [] as CompositionSpec['sections'] }, 'landing')).toBe(false);
+  });
+});
+
+describe('compositionMatchesTemplate: exact section ID set equality', () => {
+  for (const id of TEMPLATE_IDS) {
+    it(`${id}: own defaultComposition returns true`, () => {
+      expect(compositionMatchesTemplate(getTemplate(id).defaultComposition(), id)).toBe(true);
+    });
+  }
+
+  for (const fromId of TEMPLATE_IDS) {
+    for (const toId of TEMPLATE_IDS) {
+      if (fromId === toId) continue;
+      it(`${fromId} sections do not match ${toId} template`, () => {
+        expect(compositionMatchesTemplate(getTemplate(fromId).defaultComposition(), toId)).toBe(false);
+      });
+    }
+  }
+
+  it('composition with only a subset of the required sections returns false', () => {
+    const landing = getTemplate('landing').defaultComposition();
+    const subset: CompositionSpec = { sections: landing.sections.slice(0, 1) };
+    expect(compositionMatchesTemplate(subset, 'landing')).toBe(false);
+  });
+
+  it('composition with all required IDs plus an extra ID returns false', () => {
+    const landing = getTemplate('landing').defaultComposition();
+    const superset: CompositionSpec = {
+      sections: [
+        ...landing.sections,
+        { id: 'extra-panel', visible: true, density: 'regular', order: landing.sections.length },
+      ],
+    };
+    expect(compositionMatchesTemplate(superset, 'landing')).toBe(false);
+  });
+});
+
+describe('compositionMatchesTemplate: structural validity', () => {
+  it('duplicate section IDs return false even when the IDs belong to the template', () => {
+    const firstId = getTemplate('landing').defaultComposition().sections[0]!.id;
+    const withDuplicates: CompositionSpec = {
+      sections: [
+        { id: firstId, visible: true, density: 'regular', order: 0 },
+        { id: firstId, visible: false, density: 'compact', order: 1 },
+      ],
+    };
+    expect(compositionMatchesTemplate(withDuplicates, 'landing')).toBe(false);
+  });
+
+  it('alien section IDs not present in any template return false for every template', () => {
+    const alien: CompositionSpec = {
+      sections: [{ id: 'alien-section', visible: true, density: 'regular', order: 0 }],
+    };
+    for (const id of TEMPLATE_IDS) {
+      expect(compositionMatchesTemplate(alien, id)).toBe(false);
+    }
+  });
+});
+
+describe('compositionMatchesTemplate: mutable field invariance', () => {
+  for (const id of TEMPLATE_IDS) {
+    it(`${id}: all-sections-hidden still matches`, () => {
+      const allHidden: CompositionSpec = {
+        sections: getTemplate(id).defaultComposition().sections.map((s) => ({ ...s, visible: false })),
+      };
+      expect(compositionMatchesTemplate(allHidden, id)).toBe(true);
+    });
+
+    it(`${id}: mixed densities still matches`, () => {
+      const densities = ['compact', 'regular', 'spacious'] as const;
+      const mixed: CompositionSpec = {
+        sections: getTemplate(id).defaultComposition().sections.map((s, i) => ({
+          ...s,
+          density: densities[i % 3]!,
+        })),
+      };
+      expect(compositionMatchesTemplate(mixed, id)).toBe(true);
+    });
+
+    it(`${id}: sections with shuffled order values still matches`, () => {
+      const base = getTemplate(id).defaultComposition().sections;
+      const shuffled: CompositionSpec = {
+        sections: [...base].reverse().map((s, i) => ({ ...s, order: i })),
+      };
+      expect(compositionMatchesTemplate(shuffled, id)).toBe(true);
+    });
+  }
 });

@@ -16,3 +16,5 @@ export {
 } from './spec.js';
 export type { CompositionEditorProps } from './editor.js';
 export { CompositionEditor } from './editor.js';
+export type { DensityChipsProps } from './density-chips.js';
+export { DensityChips } from './density-chips.js';

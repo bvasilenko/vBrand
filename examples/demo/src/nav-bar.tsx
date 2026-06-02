@@ -8,6 +8,8 @@ interface NavBarProps {
   currentBrand: string;
   currentTemplate: TemplateId;
   isLoading: boolean;
+  dataViewHref: string;
+  onDataViewNavigate: () => void;
 }
 
 const TEMPLATE_IDS: readonly TemplateId[] = ['landing', 'marketing', 'docs', 'dashboard'];
@@ -22,21 +24,28 @@ const BRAND_EXAMPLES: Array<{ label: string; value: string }> = [
   { label: 'npm package', value: 'npm:@booga/vbrand' },
 ];
 
-export function NavBar({ currentBrand, currentTemplate, isLoading }: NavBarProps) {
+export function NavBar({ currentBrand, currentTemplate, isLoading, dataViewHref, onDataViewNavigate }: NavBarProps) {
   const [brandInput, setBrandInput] = useState(currentBrand);
-  const [templateInput, setTemplateInput] = useState<TemplateId>(currentTemplate);
 
-  function navigate() {
-    const search = buildSearchString(brandInput, templateInput);
-    window.location.search = search;
+  function applySearch(brand: string, template: TemplateId) {
+    window.location.search = buildSearchString(brand, template);
+  }
+
+  function handleBrandLoad() {
+    applySearch(brandInput, currentTemplate);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') navigate();
+    if (e.key === 'Enter') handleBrandLoad();
   }
 
   function loadExample(value: string) {
     setBrandInput(value);
+  }
+
+  function handleDataViewClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    e.preventDefault();
+    onDataViewNavigate();
   }
 
   return (
@@ -54,7 +63,7 @@ export function NavBar({ currentBrand, currentTemplate, isLoading }: NavBarProps
       }}
     >
       <span style={{ fontWeight: 700, color: 'var(--color-primary, #6366f1)', flexShrink: 0 }}>
-        vBrand 0.4.0-alpha.2
+        vBrand 0.4.0-alpha.3
       </span>
 
       <span style={{ color: 'var(--color-neutral-400, #9ca3af)', flexShrink: 0 }}>brand:</span>
@@ -75,8 +84,8 @@ export function NavBar({ currentBrand, currentTemplate, isLoading }: NavBarProps
       />
 
       <select
-        value={templateInput}
-        onChange={(e) => setTemplateInput(e.target.value as TemplateId)}
+        value={currentTemplate}
+        onChange={(e) => applySearch(brandInput, e.target.value as TemplateId)}
         style={{
           padding: '6px 10px',
           border: '1px solid var(--color-neutral-200, #e5e7eb)',
@@ -91,8 +100,28 @@ export function NavBar({ currentBrand, currentTemplate, isLoading }: NavBarProps
         ))}
       </select>
 
+      <a
+        href={dataViewHref}
+        onClick={handleDataViewClick}
+        style={{
+          padding: '6px 12px',
+          border: '1px solid var(--color-neutral-200, #e5e7eb)',
+          borderRadius: '4px',
+          fontSize: '0.8125rem',
+          color: 'var(--color-neutral-500, #6b7280)',
+          textDecoration: 'none',
+          flexShrink: 0,
+          background: 'transparent',
+          cursor: 'pointer',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-neutral-100, #f3f4f6)')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+      >
+        brand data
+      </a>
+
       <button
-        onClick={navigate}
+        onClick={handleBrandLoad}
         disabled={isLoading}
         style={{
           padding: '6px 16px',

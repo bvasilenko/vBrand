@@ -10,21 +10,45 @@ export type BrandParams =
   | { type: 'json'; payload: unknown }
   | { type: 'parse-error'; raw: string; reason: string };
 
+export type ViewTab = 'template' | 'data';
+
 export interface RouteState {
   brandParams: BrandParams;
   templateId: TemplateId;
+  view: ViewTab;
 }
 
 const TEMPLATE_IDS: readonly TemplateId[] = ['landing', 'marketing', 'docs', 'dashboard'];
 const DEFAULT_BRAND: BrandParams = { type: 'fixture', handle: 'stripe' };
 const DEFAULT_TEMPLATE: TemplateId = 'landing';
 
-export function parseRoute(search: string): RouteState {
+export function parseRoute(search: string, pathname = '/', base = '/'): RouteState {
   const params = new URLSearchParams(search);
   return {
     brandParams: parseBrandParam(params.get('brand')),
     templateId: parseTemplateParam(params.get('app')),
+    view: parseViewFromPath(pathname, base),
   };
+}
+
+export function parseViewFromPath(pathname: string, base = '/'): ViewTab {
+  const stripped = pathname.replace(/\/+$/, '');
+  const baseStripped = base.replace(/\/+$/, '') || '/';
+
+  if (baseStripped !== '/') {
+    if (stripped.startsWith(baseStripped)) {
+      const relative = stripped.slice(baseStripped.length);
+      return relative === '/data' || relative === 'data' ? 'data' : 'template';
+    }
+    return 'template';
+  }
+
+  return stripped === '/data' || stripped.endsWith('/data') ? 'data' : 'template';
+}
+
+export function buildViewPath(view: ViewTab, base = '/'): string {
+  const normalBase = base.endsWith('/') ? base : `${base}/`;
+  return view === 'data' ? `${normalBase}data` : normalBase;
 }
 
 export function buildSearchString(brandParam: string, templateId: TemplateId): string {
