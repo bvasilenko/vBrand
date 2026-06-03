@@ -3,10 +3,8 @@
 import React, { useState } from 'react';
 
 const QUEUED_AXIS_PARAMS: Array<{ param: string; label: string; iteration: string }> = [
-  { param: 'stack',   label: 'stack-runtime',       iteration: 'iteration 3 queued' },
-  { param: 'cms',     label: 'cms substrate',        iteration: 'iteration 3 queued' },
-  { param: 'mode',    label: 'interactivity mode',   iteration: 'iteration 2 queued' },
-  { param: 'content', label: 'content override',     iteration: 'iteration 2 queued' },
+  { param: 'stack', label: 'stack-runtime', iteration: 'iteration 3 queued' },
+  { param: 'cms',   label: 'cms substrate', iteration: 'iteration 3 queued' },
 ];
 
 const SESSION_KEY = 'vbrand-park-notice-dismissed';
@@ -46,7 +44,7 @@ export function ParkNotice({ search }: ParkNoticeProps) {
       }}
     >
       <div style={{ flex: 1 }}>
-        <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#eab308', marginRight: '8px' }}>alpha.3:</span>
+        <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#eab308', marginRight: '8px' }}>alpha.4:</span>
         {activeAxes.map(({ param, label, iteration }, i) => (
           <span key={param}>
             {i > 0 && ' / '}

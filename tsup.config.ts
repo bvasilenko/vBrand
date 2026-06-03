@@ -75,4 +75,23 @@ export default defineConfig([
       options.jsx = 'automatic';
     },
   },
+  {
+    entry: { content: 'src/content/index.ts' },
+    format: ['esm'],
+    dts: true,
+    sourcemap: true,
+    target: 'es2022',
+    external: ['zod'],
+  },
+  {
+    entry: { interactivity: 'src/interactivity/index.ts' },
+    format: ['esm'],
+    dts: true,
+    sourcemap: true,
+    target: 'es2022',
+    external: [...REACT_EXTERNALS],
+    esbuildOptions(options) {
+      options.jsx = 'automatic';
+    },
+  },
 ]);

@@ -6,9 +6,19 @@ import type { VbrandType } from '../schema.js';
 import type { CompositionSpec } from '../composition/spec.js';
 import { visibleSections } from '../composition/spec.js';
 import type { AppTypeTemplate, ContentOverrideMap } from './types.js';
+import {
+  deriveDashboardSidebarContent,
+  deriveDashboardStatsContent,
+  deriveDashboardGridContent,
+} from './content-derivers.js';
+import { applyContentOverride } from '../content/apply.js';
 
 const SECTION_IDS = ['sidebar', 'stats', 'grid'] as const;
 type DashboardSectionId = (typeof SECTION_IDS)[number];
+
+type DashboardSidebarContent = ReturnType<typeof deriveDashboardSidebarContent>;
+type DashboardStatsContent = ReturnType<typeof deriveDashboardStatsContent>;
+type DashboardGridContent = ReturnType<typeof deriveDashboardGridContent>;
 
 export const dashboardTemplate: AppTypeTemplate = {
   templateId: () => 'dashboard',
@@ -22,7 +32,7 @@ export const dashboardTemplate: AppTypeTemplate = {
     })),
   }),
 
-  compose(brand: VbrandType, composition: CompositionSpec, _content?: ContentOverrideMap) {
+  compose(brand: VbrandType, composition: CompositionSpec, content?: ContentOverrideMap) {
     const visible = visibleSections(composition);
     const activeSections = visible.filter((s): s is typeof s & { id: DashboardSectionId } =>
       (SECTION_IDS as readonly string[]).includes(s.id),
@@ -32,22 +42,26 @@ export const dashboardTemplate: AppTypeTemplate = {
     const hasStats = activeSections.some((s) => s.id === 'stats');
     const hasGrid = activeSections.some((s) => s.id === 'grid');
 
+    const sidebarContent = applyContentOverride(deriveDashboardSidebarContent(brand), content, 'dashboard.sidebar');
+    const statsContent = applyContentOverride(deriveDashboardStatsContent(brand), content, 'dashboard.stats');
+    const gridContent = applyContentOverride(deriveDashboardGridContent(), content, 'dashboard.grid');
+
     return (
       <Box
         as="div"
         style={{ display: 'flex', minHeight: '100vh', fontFamily: `var(--type-body, system-ui)` }}
       >
-        {hasSidebar && <DashboardSidebar brand={brand} />}
+        {hasSidebar && <DashboardSidebar content={sidebarContent} />}
         <Box as="main" style={{ flex: 1, padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {hasStats && <StatsRow brand={brand} />}
-          {hasGrid && <ContentGrid brand={brand} />}
+          {hasStats && <StatsRow content={statsContent} />}
+          {hasGrid && <ContentGrid brand={brand} content={gridContent} />}
         </Box>
       </Box>
     );
   },
 };
 
-function DashboardSidebar({ brand }: { brand: VbrandType }) {
+function DashboardSidebar({ content }: { content: DashboardSidebarContent }) {
   const navItems = [
     { label: 'Overview', active: true },
     { label: 'Brand tokens' },
@@ -73,7 +87,7 @@ function DashboardSidebar({ brand }: { brand: VbrandType }) {
       }}
     >
       <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--color-primary, #6366f1)', padding: '8px 4px' }}>
-        {brand.name}
+        {content.heading}
       </div>
       <Separator />
       <Stack style={{ gap: '4px' }}>
@@ -97,40 +111,34 @@ function DashboardSidebar({ brand }: { brand: VbrandType }) {
   );
 }
 
-function StatsRow({ brand }: { brand: VbrandType }) {
-  const colorCount = Object.keys(brand.tokens.color).length;
-  const typeCount = Object.keys(brand.tokens.type).length;
-  const stats = [
-    { label: 'Brand name', value: brand.name },
-    { label: 'Color tokens', value: String(colorCount) },
-    { label: 'Type tokens', value: String(typeCount) },
-    { label: 'Sources', value: String(brand.sources?.length ?? 0) },
-  ];
-
+function StatsRow({ content }: { content: DashboardStatsContent }) {
   return (
-    <Grid columns={4} style={{ gap: '16px' }}>
-      {stats.map((s) => (
-        <Card key={s.label}>
-          <CardHeader>
-            <CardTitle style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-neutral-500, #6b7280)' }}>
-              {s.label}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>{s.value}</span>
-          </CardContent>
-        </Card>
-      ))}
-    </Grid>
+    <Stack style={{ gap: '12px' }}>
+      <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{content.heading}</h2>
+      <Grid columns={4} style={{ gap: '16px' }}>
+        {content.stats.map((s) => (
+          <Card key={s.label}>
+            <CardHeader>
+              <CardTitle style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-neutral-500, #6b7280)' }}>
+                {s.label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>{s.value}</span>
+            </CardContent>
+          </Card>
+        ))}
+      </Grid>
+    </Stack>
   );
 }
 
-function ContentGrid({ brand }: { brand: VbrandType }) {
+function ContentGrid({ brand, content }: { brand: VbrandType; content: DashboardGridContent }) {
   const colorEntries = Object.entries(brand.tokens.color).slice(0, 6);
 
   return (
     <Stack style={{ gap: '16px' }}>
-      <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Color palette</h2>
+      <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{content.heading}</h2>
       <Grid columns={3} style={{ gap: '16px' }}>
         {colorEntries.map(([key, value]) => (
           <Card key={key}>

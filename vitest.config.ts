@@ -1,8 +1,19 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
 import { defineConfig } from 'vitest/config';
+import path from 'node:path';
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@booga/vbrand/adapters/browser': path.resolve('./dist/adapters-browser.js'),
+      '@booga/vbrand/adapters':         path.resolve('./dist/adapters.js'),
+      '@booga/vbrand/templates':        path.resolve('./dist/templates.js'),
+      '@booga/vbrand/composition':      path.resolve('./dist/composition.js'),
+      '@booga/vbrand/content':          path.resolve('./dist/content.js'),
+      '@booga/vbrand/interactivity':    path.resolve('./dist/interactivity.js'),
+    },
+  },
   test: {
     globals: true,
     environment: 'node',
