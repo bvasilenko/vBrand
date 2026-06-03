@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
 import React, { useState } from 'react';
-import type { TemplateId } from './router';
-import { buildSearchString } from './router';
+import type { TemplateId, InteractivityMode } from './router';
+import { buildSearchString, DEFAULT_MODE } from './router';
 
 interface NavBarProps {
   currentBrand: string;
   currentTemplate: TemplateId;
+  currentMode?: InteractivityMode;
   isLoading: boolean;
   dataViewHref: string;
   onDataViewNavigate: () => void;
 }
 
 const TEMPLATE_IDS: readonly TemplateId[] = ['landing', 'marketing', 'docs', 'dashboard'];
+const INTERACTION_MODES: readonly InteractivityMode[] = ['static', 'hybrid', 'spa'];
 
 const BRAND_EXAMPLES: Array<{ label: string; value: string }> = [
   { label: 'Stripe (fixture)', value: 'fixture:stripe' },
@@ -24,15 +26,21 @@ const BRAND_EXAMPLES: Array<{ label: string; value: string }> = [
   { label: 'npm package', value: 'npm:@booga/vbrand' },
 ];
 
-export function NavBar({ currentBrand, currentTemplate, isLoading, dataViewHref, onDataViewNavigate }: NavBarProps) {
+export function NavBar({ currentBrand, currentTemplate, currentMode, isLoading, dataViewHref, onDataViewNavigate }: NavBarProps) {
   const [brandInput, setBrandInput] = useState(currentBrand);
+  const activeMode = currentMode ?? DEFAULT_MODE;
 
-  function applySearch(brand: string, template: TemplateId) {
-    window.location.search = buildSearchString(brand, template);
+  function applySearch(brand: string, template: TemplateId, mode: InteractivityMode) {
+    const search = buildSearchString(brand, template, mode);
+    if (template !== currentTemplate) {
+      window.location.href = `${window.location.pathname}?${search}`;
+    } else {
+      window.location.search = search;
+    }
   }
 
   function handleBrandLoad() {
-    applySearch(brandInput, currentTemplate);
+    applySearch(brandInput, currentTemplate, activeMode);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -63,7 +71,7 @@ export function NavBar({ currentBrand, currentTemplate, isLoading, dataViewHref,
       }}
     >
       <span style={{ fontWeight: 700, color: 'var(--color-primary, #6366f1)', flexShrink: 0 }}>
-        vBrand 0.4.0-alpha.3
+        vBrand 0.4.0-alpha.4
       </span>
 
       <span style={{ color: 'var(--color-neutral-400, #9ca3af)', flexShrink: 0 }}>brand:</span>
@@ -85,7 +93,7 @@ export function NavBar({ currentBrand, currentTemplate, isLoading, dataViewHref,
 
       <select
         value={currentTemplate}
-        onChange={(e) => applySearch(brandInput, e.target.value as TemplateId)}
+        onChange={(e) => applySearch(brandInput, e.target.value as TemplateId, activeMode)}
         style={{
           padding: '6px 10px',
           border: '1px solid var(--color-neutral-200, #e5e7eb)',
@@ -97,6 +105,23 @@ export function NavBar({ currentBrand, currentTemplate, isLoading, dataViewHref,
       >
         {TEMPLATE_IDS.map((id) => (
           <option key={id} value={id}>{id}</option>
+        ))}
+      </select>
+
+      <select
+        value={activeMode}
+        onChange={(e) => applySearch(brandInput, currentTemplate, e.target.value as InteractivityMode)}
+        style={{
+          padding: '6px 10px',
+          border: '1px solid var(--color-neutral-200, #e5e7eb)',
+          borderRadius: '4px',
+          fontSize: '0.8125rem',
+          background: 'var(--color-neutral-50, #f9fafb)',
+          flexShrink: 0,
+        }}
+      >
+        {INTERACTION_MODES.map((m) => (
+          <option key={m} value={m}>{m}</option>
         ))}
       </select>
 

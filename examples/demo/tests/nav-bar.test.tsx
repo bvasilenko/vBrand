@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { NavBar } from '../src/nav-bar.js';
-import { buildSearchString, parseRoute, type TemplateId } from '../src/router.js';
+import { buildSearchString, parseRoute, DEFAULT_MODE, type TemplateId, type InteractivityMode } from '../src/router.js';
 
 const ALL_TEMPLATE_IDS: readonly TemplateId[] = ['landing', 'marketing', 'docs', 'dashboard'];
 
@@ -20,9 +20,11 @@ const FIXTURE_BRANDS = [
 let container: HTMLDivElement;
 let root: Root;
 let navigations: string[];
+let hrefNavigations: string[];
 
 beforeEach(() => {
   navigations = [];
+  hrefNavigations = [];
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -30,9 +32,14 @@ beforeEach(() => {
   vi.stubGlobal('location', {
     search: '',
     pathname: '/',
-    hash: '',
+    hash: '#existing-hash',
     set search(val: string) { navigations.push(val); },
     get search() { return navigations[navigations.length - 1] ?? ''; },
+    set href(val: string) {
+      hrefNavigations.push(val);
+      const url = new URL(val, 'http://localhost');
+      navigations.push(url.search.slice(1));
+    },
   });
 });
 
@@ -43,6 +50,7 @@ afterEach(() => {
 });
 
 interface NavBarOverrides {
+  currentMode?: InteractivityMode;
   currentBrand?: string;
   currentTemplate?: TemplateId;
   isLoading?: boolean;
@@ -344,5 +352,189 @@ describe('NavBar: data view link', () => {
     renderNavBar({ onDataViewNavigate: vi.fn() });
     act(() => dataViewLink().click());
     expect(navigations).toHaveLength(0);
+  });
+});
+
+const ALL_MODES: readonly InteractivityMode[] = ['static', 'hybrid', 'spa'];
+
+function modeSelect(): HTMLSelectElement {
+  return container.querySelectorAll('select')[1] as HTMLSelectElement;
+}
+
+function changeModeSelect(mode: InteractivityMode): void {
+  act(() => {
+    const sel = modeSelect();
+    sel.value = mode;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+describe('NavBar: mode select reflects currentMode prop', () => {
+  it.each(ALL_MODES)(
+    'currentMode="%s": mode select value matches the prop',
+    (mode) => {
+      renderNavBar({ currentMode: mode });
+      expect(modeSelect().value).toBe(mode);
+    },
+  );
+
+  it(`defaults to DEFAULT_MODE ("${DEFAULT_MODE}") when currentMode is not provided`, () => {
+    renderNavBar({});
+    expect(modeSelect().value).toBe(DEFAULT_MODE);
+  });
+
+  it('mode select offers exactly three options: static, hybrid, spa', () => {
+    renderNavBar();
+    const offered = [...modeSelect().options].map((o) => o.value).sort();
+    expect(offered).toEqual(['hybrid', 'spa', 'static']);
+  });
+
+  it('mode select is a distinct element from the template select', () => {
+    renderNavBar();
+    expect(modeSelect()).not.toBe(templateSelect());
+  });
+});
+
+describe('NavBar: mode select change triggers navigation', () => {
+  it('changing mode to static causes exactly one navigation call', () => {
+    renderNavBar({ currentMode: 'spa' });
+    changeModeSelect('static');
+    expect(navigations).toHaveLength(1);
+  });
+
+  it.each(['static', 'hybrid'] as const)(
+    'navigation from mode change to "%s" includes mode=%s in the search string',
+    (mode) => {
+      renderNavBar({ currentMode: 'spa' });
+      changeModeSelect(mode);
+      expect(new URLSearchParams(navigations[0]).get('mode')).toBe(mode);
+    },
+  );
+
+  it('navigation from mode change to spa omits the mode param (DEFAULT_MODE produces clean URL)', () => {
+    renderNavBar({ currentMode: 'static' });
+    changeModeSelect('spa');
+    expect(new URLSearchParams(navigations[0]).get('mode')).toBeNull();
+  });
+
+  it('navigation from mode change carries the current brand and template', () => {
+    renderNavBar({ currentBrand: 'fixture:vercel', currentTemplate: 'docs', currentMode: 'spa' });
+    changeModeSelect('static');
+    const params = new URLSearchParams(navigations[0]);
+    expect(params.get('brand')).toBe('fixture:vercel');
+    expect(params.get('app')).toBe('docs');
+    expect(params.get('mode')).toBe('static');
+  });
+
+  it('navigation search string equals buildSearchString(brand, template, newMode)', () => {
+    renderNavBar({ currentBrand: 'fixture:linear', currentTemplate: 'marketing', currentMode: 'spa' });
+    changeModeSelect('hybrid');
+    expect(navigations[0]).toBe(buildSearchString('fixture:linear', 'marketing', 'hybrid'));
+  });
+
+  it('navigation is round-trip parseable and recovers mode, brand, and template', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'dashboard', currentMode: 'spa' });
+    changeModeSelect('static');
+    const route = parseRoute(navigations[0]!);
+    expect(route.mode).toBe('static');
+    expect(route.templateId).toBe('dashboard');
+    expect(route.brandParams).toEqual({ type: 'fixture', handle: 'stripe' });
+  });
+});
+
+describe('NavBar: navigation from brand/template/load preserves active mode', () => {
+  it('template change preserves currentMode=static in navigation', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentMode: 'static' });
+    changeTemplateSelect('docs');
+    expect(new URLSearchParams(navigations[0]).get('mode')).toBe('static');
+  });
+
+  it('template change with mode=spa (DEFAULT_MODE) omits the mode param', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentMode: 'spa' });
+    changeTemplateSelect('marketing');
+    expect(new URLSearchParams(navigations[0]).get('mode')).toBeNull();
+  });
+
+  it('Load button preserves currentMode=hybrid in navigation', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentMode: 'hybrid' });
+    clickLoad();
+    expect(new URLSearchParams(navigations[0]).get('mode')).toBe('hybrid');
+  });
+
+  it('Enter key preserves currentMode=static in navigation', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentMode: 'static' });
+    pressEnterInBrandInput();
+    expect(new URLSearchParams(navigations[0]).get('mode')).toBe('static');
+  });
+
+  it('Load navigation equals buildSearchString(brand, template, mode)', () => {
+    renderNavBar({ currentBrand: 'fixture:notion', currentTemplate: 'dashboard', currentMode: 'static' });
+    clickLoad();
+    expect(navigations[0]).toBe(buildSearchString('fixture:notion', 'dashboard', 'static'));
+  });
+
+  it.each(ALL_MODES)(
+    'Load button with mode="%s" round-trips through parseRoute correctly',
+    (mode) => {
+      renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'marketing', currentMode: mode });
+      clickLoad();
+      expect(parseRoute(navigations[0]!).mode).toBe(mode);
+    },
+  );
+});
+
+const CROSS_TEMPLATE_PAIRS: ReadonlyArray<[TemplateId, TemplateId]> = [
+  ['landing',   'docs'],
+  ['landing',   'marketing'],
+  ['landing',   'dashboard'],
+  ['marketing', 'landing'],
+  ['docs',      'dashboard'],
+  ['dashboard', 'marketing'],
+];
+
+describe('NavBar: navigation hash policy', () => {
+  it.each(CROSS_TEMPLATE_PAIRS)(
+    'switching template from "%s" to "%s" produces a destination URL with no hash fragment',
+    (from, to) => {
+      renderNavBar({ currentTemplate: from });
+      changeTemplateSelect(to);
+      expect(hrefNavigations).toHaveLength(1);
+      expect(new URL(hrefNavigations[0]!, 'http://localhost').hash).toBe('');
+    },
+  );
+
+  it.each(ALL_TEMPLATE_IDS)(
+    'selecting the currently active template "%s" does not produce a hash-stripping navigation',
+    (id) => {
+      renderNavBar({ currentTemplate: id });
+      changeTemplateSelect(id);
+      expect(hrefNavigations).toHaveLength(0);
+      expect(navigations).toHaveLength(1);
+    },
+  );
+
+  it.each(ALL_MODES)(
+    'mode change to "%s" does not produce a hash-stripping navigation',
+    (newMode) => {
+      const currentMode = newMode === 'spa' ? 'static' : 'spa';
+      renderNavBar({ currentTemplate: 'landing', currentMode });
+      changeModeSelect(newMode);
+      expect(hrefNavigations).toHaveLength(0);
+      expect(navigations).toHaveLength(1);
+    },
+  );
+
+  it('Load button does not produce a hash-stripping navigation', () => {
+    renderNavBar({ currentTemplate: 'landing' });
+    clickLoad();
+    expect(hrefNavigations).toHaveLength(0);
+    expect(navigations).toHaveLength(1);
+  });
+
+  it('Enter key in brand input does not produce a hash-stripping navigation', () => {
+    renderNavBar({ currentTemplate: 'landing' });
+    pressEnterInBrandInput();
+    expect(hrefNavigations).toHaveLength(0);
+    expect(navigations).toHaveLength(1);
   });
 });

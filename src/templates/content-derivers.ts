@@ -71,6 +71,68 @@ export function deriveTestimonialContent() {
   } as const;
 }
 
+export function deriveMarketingTestimonialsContent(brand: VbrandType, density?: Density) {
+  return {
+    heading: `What teams say about ${brand.name}`,
+    items: [
+      { ...deriveTestimonialContent(), company: brand.name },
+      {
+        quote: 'The token system made our design handoffs seamless.',
+        author: 'Frontend Lead',
+        role: 'Engineering Manager',
+        company: brand.name,
+      },
+    ],
+    density: toBlockDensity(density),
+  };
+}
+
+export function deriveMarketingPricingContent(brand: VbrandType) {
+  return {
+    heading: `Simple pricing for ${brand.name} brand ops`,
+    description: brand.voice.canonical,
+  } as const;
+}
+
+export function deriveDocsSidebarContent(brand: VbrandType) {
+  return { heading: brand.name } as const;
+}
+
+export function deriveDocsArticleContent(brand: VbrandType) {
+  return {
+    title: `${brand.name} brand guide`,
+    subtitle: brand.voice.canonical,
+    canonicalVoice: brand.voice.canonical,
+    repoDescription: brand.voice.repoDescription,
+  } as const;
+}
+
+export function deriveDocsTocContent(brand: VbrandType) {
+  return { heading: `${brand.name} on this page` } as const;
+}
+
+export function deriveDashboardSidebarContent(brand: VbrandType) {
+  return { heading: brand.name } as const;
+}
+
+export function deriveDashboardStatsContent(brand: VbrandType) {
+  const colorCount = Object.keys(brand.tokens.color).length;
+  const typeCount = Object.keys(brand.tokens.type).length;
+  return {
+    heading: 'Brand stats',
+    stats: [
+      { label: 'Brand name', value: brand.name },
+      { label: 'Color tokens', value: String(colorCount) },
+      { label: 'Type tokens', value: String(typeCount) },
+      { label: 'Sources', value: String(brand.sources?.length ?? 0) },
+    ],
+  };
+}
+
+export function deriveDashboardGridContent() {
+  return { heading: 'Color palette' } as const;
+}
+
 export function deriveThemeOverride(brand: VbrandType): Record<string, string> {
   const overrides: Record<string, string> = {};
   if (brand.tokens.color['primary']) {

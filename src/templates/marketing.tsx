@@ -14,11 +14,12 @@ import {
   deriveHeroContent,
   deriveCtaContent,
   deriveFooterContent,
-  deriveTestimonialContent,
+  deriveMarketingTestimonialsContent,
+  deriveMarketingPricingContent,
   deriveThemeOverride,
-  toBlockDensity,
 } from './content-derivers.js';
 import type { Density } from '../composition/spec.js';
+import { applyContentOverride } from '../content/apply.js';
 
 const SECTION_IDS = ['hero', 'testimonials', 'pricing', 'cta', 'footer'] as const;
 type MarketingSectionId = (typeof SECTION_IDS)[number];
@@ -35,14 +36,14 @@ export const marketingTemplate: AppTypeTemplate = {
     })),
   }),
 
-  compose(brand: VbrandType, composition: CompositionSpec, _content?: ContentOverrideMap) {
+  compose(brand: VbrandType, composition: CompositionSpec, content?: ContentOverrideMap) {
     const theme = deriveThemeOverride(brand);
     const visible = visibleSections(composition);
     const rendered = visible
       .filter((s): s is typeof s & { id: MarketingSectionId } =>
         (SECTION_IDS as readonly string[]).includes(s.id),
       )
-      .map((s) => renderSection(brand, s.id, s.density, theme));
+      .map((s) => renderSection(brand, s.id, s.density, theme, content));
 
     return <div style={{ display: 'flex', flexDirection: 'column' }}>{rendered}</div>;
   },
@@ -53,45 +54,35 @@ function renderSection(
   id: MarketingSectionId,
   density: string,
   theme: Record<string, string>,
+  content?: ContentOverrideMap,
 ) {
   const d = density as Density;
   switch (id) {
     case 'hero':
-      return <HeroSplit key="hero" content={deriveHeroContent(brand, d)} theme={theme} />;
+      return <HeroSplit key="hero" content={applyContentOverride(deriveHeroContent(brand, d), content, 'marketing.hero')} theme={theme} />;
     case 'testimonials':
       return (
         <TestimonialGrid
           key="testimonials"
-          content={{
-            heading: `What teams say about ${brand.name}`,
-            items: [
-              { ...deriveTestimonialContent(), company: brand.name },
-              {
-                quote: 'The token system made our design handoffs seamless.',
-                author: 'Frontend Lead',
-                role: 'Engineering Manager',
-                company: brand.name,
-              },
-            ],
-            density: toBlockDensity(d),
-          }}
+          content={applyContentOverride(deriveMarketingTestimonialsContent(brand, d), content, 'marketing.testimonials')}
           theme={theme}
         />
       );
     case 'pricing':
-      return <PricingSection key="pricing" brand={brand} />;
+      return <PricingSection key="pricing" brand={brand} content={applyContentOverride(deriveMarketingPricingContent(brand), content, 'marketing.pricing')} />;
     case 'cta':
-      return <CtaCentered key="cta" content={deriveCtaContent(brand, d)} theme={theme} />;
+      return <CtaCentered key="cta" content={applyContentOverride(deriveCtaContent(brand, d), content, 'marketing.cta')} theme={theme} />;
     case 'footer':
-      return <FooterSplit key="footer" content={deriveFooterContent(brand, d)} theme={theme} />;
+      return <FooterSplit key="footer" content={applyContentOverride(deriveFooterContent(brand, d), content, 'marketing.footer')} theme={theme} />;
   }
 }
 
 interface PricingSectionProps {
   brand: VbrandType;
+  content: ReturnType<typeof deriveMarketingPricingContent>;
 }
 
-function PricingSection({ brand }: PricingSectionProps) {
+function PricingSection({ brand, content }: PricingSectionProps) {
   const tiers = [
     { name: 'Starter', price: 'Free', features: ['5 brand sources', 'Core tokens', 'CLI access'] },
     {
@@ -111,7 +102,7 @@ function PricingSection({ brand }: PricingSectionProps) {
       <Stack style={{ gap: '32px', maxWidth: '1200px', margin: '0 auto' }}>
         <Stack style={{ gap: '8px', textAlign: 'center' }}>
           <h2 style={{ fontFamily: `var(--type-heading, system-ui)`, fontSize: '2rem', margin: 0 }}>
-            Simple pricing for {brand.name} brand ops
+            {content.heading}
           </h2>
           <p style={{ color: 'var(--color-neutral-500, #6b7280)', margin: 0 }}>
             {brand.voice.canonical}

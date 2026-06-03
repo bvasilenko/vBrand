@@ -1,6 +1,6 @@
 {
   "name": "@booga/vbrand",
-  "version": "0.4.0-alpha.3",
+  "version": "0.4.0-alpha.4",
   "description": "Active brand-operations layer: pull brand surfaces, fuse into canonical schema, emit deterministic assets, audit for drift, publish portable bundles.",
   "type": "module",
   "bin": {
@@ -26,6 +26,14 @@
     "./composition": {
       "import": "./dist/composition.js",
       "types": "./dist/composition.d.ts"
+    },
+    "./content": {
+      "import": "./dist/content.js",
+      "types": "./dist/content.d.ts"
+    },
+    "./interactivity": {
+      "import": "./dist/interactivity.js",
+      "types": "./dist/interactivity.d.ts"
     }
   },
   "main": "./dist/index.js",

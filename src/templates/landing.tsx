@@ -16,6 +16,7 @@ import {
   deriveFooterContent,
   deriveThemeOverride,
 } from './content-derivers.js';
+import { applyContentOverride } from '../content/apply.js';
 
 const SECTION_IDS = ['hero', 'features', 'cta', 'footer'] as const;
 type LandingSectionId = (typeof SECTION_IDS)[number];
@@ -32,14 +33,14 @@ export const landingTemplate: AppTypeTemplate = {
     })),
   }),
 
-  compose(brand: VbrandType, composition: CompositionSpec, _content?: ContentOverrideMap) {
+  compose(brand: VbrandType, composition: CompositionSpec, content?: ContentOverrideMap) {
     const theme = deriveThemeOverride(brand);
     const visible = visibleSections(composition);
     const rendered = visible
       .filter((s): s is typeof s & { id: LandingSectionId } =>
         (SECTION_IDS as readonly string[]).includes(s.id),
       )
-      .map((s) => renderSection(brand, s.id, s.density, theme));
+      .map((s) => renderSection(brand, s.id, s.density, theme, content));
 
     return <div style={{ display: 'flex', flexDirection: 'column' }}>{rendered}</div>;
   },
@@ -50,16 +51,17 @@ function renderSection(
   id: LandingSectionId,
   density: string,
   theme: Record<string, string>,
+  content?: ContentOverrideMap,
 ) {
   const d = density as 'compact' | 'regular' | 'spacious';
   switch (id) {
     case 'hero':
-      return <HeroSplit key="hero" content={deriveHeroContent(brand, d)} theme={theme} />;
+      return <HeroSplit key="hero" content={applyContentOverride(deriveHeroContent(brand, d), content, 'landing.hero')} theme={theme} />;
     case 'features':
-      return <FeaturesGrid key="features" content={deriveFeaturesContent(brand, d)} theme={theme} />;
+      return <FeaturesGrid key="features" content={applyContentOverride(deriveFeaturesContent(brand, d), content, 'landing.features')} theme={theme} />;
     case 'cta':
-      return <CtaCentered key="cta" content={deriveCtaContent(brand, d)} theme={theme} />;
+      return <CtaCentered key="cta" content={applyContentOverride(deriveCtaContent(brand, d), content, 'landing.cta')} theme={theme} />;
     case 'footer':
-      return <FooterSplit key="footer" content={deriveFooterContent(brand, d)} theme={theme} />;
+      return <FooterSplit key="footer" content={applyContentOverride(deriveFooterContent(brand, d), content, 'landing.footer')} theme={theme} />;
   }
 }

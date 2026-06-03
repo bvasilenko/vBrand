@@ -8,6 +8,8 @@ import {
   buildSearchString,
   brandParamToString,
   type BrandParams,
+  type InteractivityMode,
+  DEFAULT_MODE,
   type TemplateId,
 } from '../src/router.js';
 
@@ -342,4 +344,73 @@ describe('buildViewPath - constructs correct URL path for each view', () => {
   it('data view with / base returns /data', () => {
     expect(buildViewPath('data', '/')).toBe('/data');
   });
+});
+
+const ALL_MODES: readonly InteractivityMode[] = ['static', 'hybrid', 'spa'];
+
+describe('parseRoute - mode field parsing', () => {
+  it.each(ALL_MODES)('mode=%s is parsed as InteractivityMode %s', (mode) => {
+    expect(parseRoute(`app=landing&mode=${mode}`).mode).toBe(mode);
+  });
+
+  it('absent mode param falls back to DEFAULT_MODE', () => {
+    expect(parseRoute('app=landing').mode).toBe(DEFAULT_MODE);
+  });
+
+  it.each(['ssr', '', 'SSR', 'Static'] as const)(
+    'unrecognized mode value "%s" falls back to DEFAULT_MODE',
+    (bad) => {
+      expect(parseRoute(`app=landing&mode=${bad}`).mode).toBe(DEFAULT_MODE);
+    },
+  );
+
+  it('mode field is independent of brand and template params', () => {
+    const route = parseRoute('brand=fixture:stripe&app=marketing&mode=static');
+    expect(route.mode).toBe('static');
+    expect(route.templateId).toBe('marketing');
+    expect(route.brandParams).toEqual({ type: 'fixture', handle: 'stripe' });
+  });
+
+  it('all three modes survive parseRoute + parseRoute round-trip via buildSearchString', () => {
+    for (const mode of ALL_MODES) {
+      const search = buildSearchString('fixture:stripe', 'landing', mode);
+      expect(parseRoute(search).mode).toBe(mode);
+    }
+  });
+});
+
+describe('buildSearchString - mode param encoding', () => {
+  it('mode=spa is omitted from output (spa is DEFAULT_MODE, clean URL convention)', () => {
+    expect(new URLSearchParams(buildSearchString('fixture:stripe', 'landing', 'spa')).get('mode')).toBeNull();
+  });
+
+  it('omitting the mode arg produces the same string as passing DEFAULT_MODE explicitly', () => {
+    expect(buildSearchString('fixture:stripe', 'landing')).toBe(
+      buildSearchString('fixture:stripe', 'landing', DEFAULT_MODE),
+    );
+  });
+
+  it('mode=static is encoded as mode=static in the query string', () => {
+    expect(new URLSearchParams(buildSearchString('fixture:stripe', 'landing', 'static')).get('mode')).toBe('static');
+  });
+
+  it('mode=hybrid is encoded as mode=hybrid in the query string', () => {
+    expect(new URLSearchParams(buildSearchString('fixture:stripe', 'landing', 'hybrid')).get('mode')).toBe('hybrid');
+  });
+
+  it.each(ALL_MODES)('mode=%s round-trips through buildSearchString -> parseRoute', (mode) => {
+    const route = parseRoute(buildSearchString('fixture:vercel', 'docs', mode));
+    expect(route.mode).toBe(mode);
+    expect(route.templateId).toBe('docs');
+    expect(route.brandParams).toEqual({ type: 'fixture', handle: 'vercel' });
+  });
+
+  it.each(ALL_TEMPLATE_IDS)(
+    'mode=static with template=%s round-trips correctly for all templates',
+    (templateId) => {
+      const route = parseRoute(buildSearchString('fixture:stripe', templateId, 'static'));
+      expect(route.mode).toBe('static');
+      expect(route.templateId).toBe(templateId);
+    },
+  );
 });

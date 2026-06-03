@@ -3,8 +3,9 @@
 import type React from 'react';
 import type { VbrandType } from '../schema.js';
 import type { CompositionSpec } from '../composition/spec.js';
+import type { ContentOverrideMap } from '../content/override.js';
 
-export type ContentOverrideMap = Record<string, unknown>;
+export type { ContentOverrideMap };
 
 export interface AppTypeTemplate {
   templateId(): string;

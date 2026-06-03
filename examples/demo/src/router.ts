@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
 export type TemplateId = 'landing' | 'marketing' | 'docs' | 'dashboard';
+export type InteractivityMode = 'static' | 'hybrid' | 'spa';
 
 export type BrandParams =
   | { type: 'fixture'; handle: string }
@@ -16,11 +17,14 @@ export interface RouteState {
   brandParams: BrandParams;
   templateId: TemplateId;
   view: ViewTab;
+  mode: InteractivityMode;
 }
 
 const TEMPLATE_IDS: readonly TemplateId[] = ['landing', 'marketing', 'docs', 'dashboard'];
+const INTERACTION_MODES: readonly InteractivityMode[] = ['static', 'hybrid', 'spa'];
 const DEFAULT_BRAND: BrandParams = { type: 'fixture', handle: 'stripe' };
 const DEFAULT_TEMPLATE: TemplateId = 'landing';
+export const DEFAULT_MODE: InteractivityMode = 'spa';
 
 export function parseRoute(search: string, pathname = '/', base = '/'): RouteState {
   const params = new URLSearchParams(search);
@@ -28,6 +32,7 @@ export function parseRoute(search: string, pathname = '/', base = '/'): RouteSta
     brandParams: parseBrandParam(params.get('brand')),
     templateId: parseTemplateParam(params.get('app')),
     view: parseViewFromPath(pathname, base),
+    mode: parseModeParam(params.get('mode')),
   };
 }
 
@@ -51,10 +56,15 @@ export function buildViewPath(view: ViewTab, base = '/'): string {
   return view === 'data' ? `${normalBase}data` : normalBase;
 }
 
-export function buildSearchString(brandParam: string, templateId: TemplateId): string {
+export function buildSearchString(
+  brandParam: string,
+  templateId: TemplateId,
+  mode?: InteractivityMode,
+): string {
   const params = new URLSearchParams();
   if (brandParam) params.set('brand', brandParam);
   params.set('app', templateId);
+  if (mode && mode !== DEFAULT_MODE) params.set('mode', mode);
   return params.toString();
 }
 
@@ -118,4 +128,11 @@ function parseTemplateParam(raw: string | null): TemplateId {
     return raw as TemplateId;
   }
   return DEFAULT_TEMPLATE;
+}
+
+function parseModeParam(raw: string | null): InteractivityMode {
+  if (raw && (INTERACTION_MODES as readonly string[]).includes(raw)) {
+    return raw as InteractivityMode;
+  }
+  return DEFAULT_MODE;
 }

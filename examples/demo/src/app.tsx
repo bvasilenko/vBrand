@@ -66,6 +66,7 @@ export function App() {
       <NavBar
         currentBrand={brandLabel}
         currentTemplate={route.templateId}
+        currentMode={route.mode}
         isLoading={isLoading}
         dataViewHref={buildViewPath('data', base) + window.location.search + window.location.hash}
         onDataViewNavigate={() => {
@@ -83,7 +84,7 @@ export function App() {
         {isLoading && <LoadingState label={brandLabel} />}
         {!isLoading && error && <ErrorState error={error} brandLabel={brandLabel} />}
         {!isLoading && !error && brand && activeTab === 'template' && (
-          <TemplateView brand={brand} templateId={route.templateId} />
+          <TemplateView brand={brand} templateId={route.templateId} mode={route.mode} />
         )}
         {!isLoading && !error && brand && activeTab === 'data' && (
           <DataView brand={brand} sourceLabel={brandLabel} meta={meta} />

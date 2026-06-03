@@ -6,9 +6,19 @@ import type { VbrandType } from '../schema.js';
 import type { CompositionSpec } from '../composition/spec.js';
 import { visibleSections } from '../composition/spec.js';
 import type { AppTypeTemplate, ContentOverrideMap } from './types.js';
+import {
+  deriveDocsSidebarContent,
+  deriveDocsArticleContent,
+  deriveDocsTocContent,
+} from './content-derivers.js';
+import { applyContentOverride } from '../content/apply.js';
 
 const SECTION_IDS = ['sidebar', 'article', 'toc'] as const;
 type DocsSectionId = (typeof SECTION_IDS)[number];
+
+type DocsSidebarContent = ReturnType<typeof deriveDocsSidebarContent>;
+type DocsArticleContent = ReturnType<typeof deriveDocsArticleContent>;
+type DocsTocContent = ReturnType<typeof deriveDocsTocContent>;
 
 export const docsTemplate: AppTypeTemplate = {
   templateId: () => 'docs',
@@ -22,7 +32,7 @@ export const docsTemplate: AppTypeTemplate = {
     })),
   }),
 
-  compose(brand: VbrandType, composition: CompositionSpec, _content?: ContentOverrideMap) {
+  compose(brand: VbrandType, composition: CompositionSpec, content?: ContentOverrideMap) {
     const visible = visibleSections(composition);
     const activeSections = visible.filter((s): s is typeof s & { id: DocsSectionId } =>
       (SECTION_IDS as readonly string[]).includes(s.id),
@@ -30,7 +40,11 @@ export const docsTemplate: AppTypeTemplate = {
 
     const hasSidebar = activeSections.some((s) => s.id === 'sidebar');
     const hasToc = activeSections.some((s) => s.id === 'toc');
-    const articleSection = activeSections.find((s) => s.id === 'article');
+    const hasArticle = activeSections.some((s) => s.id === 'article');
+
+    const sidebarContent = applyContentOverride(deriveDocsSidebarContent(brand), content, 'docs.sidebar');
+    const articleContent = applyContentOverride(deriveDocsArticleContent(brand), content, 'docs.article');
+    const tocContent = applyContentOverride(deriveDocsTocContent(brand), content, 'docs.toc');
 
     return (
       <Box
@@ -41,17 +55,17 @@ export const docsTemplate: AppTypeTemplate = {
           fontFamily: `var(--type-body, system-ui)`,
         }}
       >
-        {hasSidebar && <DocsSidebar brand={brand} />}
+        {hasSidebar && <DocsSidebar content={sidebarContent} />}
         <Box as="main" style={{ flex: 1, padding: '32px', maxWidth: '800px' }}>
-          {articleSection && <DocsArticle brand={brand} />}
+          {hasArticle && <DocsArticle brand={brand} content={articleContent} />}
         </Box>
-        {hasToc && <DocsToc brand={brand} />}
+        {hasToc && <DocsToc content={tocContent} />}
       </Box>
     );
   },
 };
 
-function DocsSidebar({ brand }: { brand: VbrandType }) {
+function DocsSidebar({ content }: { content: DocsSidebarContent }) {
   const navItems = [
     { label: 'Overview', href: '#overview' },
     { label: 'Voice', href: '#voice' },
@@ -74,7 +88,7 @@ function DocsSidebar({ brand }: { brand: VbrandType }) {
     >
       <Stack style={{ gap: '16px' }}>
         <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--color-primary, #6366f1)' }}>
-          {brand.name}
+          {content.heading}
         </span>
         <Separator />
         <Stack style={{ gap: '4px' }}>
@@ -100,12 +114,12 @@ function DocsSidebar({ brand }: { brand: VbrandType }) {
   );
 }
 
-function DocsArticle({ brand }: { brand: VbrandType }) {
+function DocsArticle({ brand, content }: { brand: VbrandType; content: DocsArticleContent }) {
   return (
     <Stack style={{ gap: '24px' }}>
       <Stack id="overview" style={{ gap: '8px' }}>
-        <h1 style={{ fontFamily: `var(--type-heading, system-ui)`, margin: 0 }}>{brand.name} brand guide</h1>
-        <p style={{ color: 'var(--color-neutral-500, #6b7280)', margin: 0 }}>{brand.voice.canonical}</p>
+        <h1 style={{ fontFamily: `var(--type-heading, system-ui)`, margin: 0 }}>{content.title}</h1>
+        <p style={{ color: 'var(--color-neutral-500, #6b7280)', margin: 0 }}>{content.subtitle}</p>
       </Stack>
       <Separator />
       <Stack id="voice" style={{ gap: '12px' }}>
@@ -113,8 +127,8 @@ function DocsArticle({ brand }: { brand: VbrandType }) {
         <Card>
           <CardContent>
             <Stack style={{ gap: '8px' }}>
-              <p><strong>Canonical:</strong> {brand.voice.canonical}</p>
-              <p><strong>Description:</strong> {brand.voice.repoDescription}</p>
+              <p><strong>Canonical:</strong> {content.canonicalVoice}</p>
+              <p><strong>Description:</strong> {content.repoDescription}</p>
             </Stack>
           </CardContent>
         </Card>
@@ -160,7 +174,7 @@ function ColorRow({ name, value }: { name: string; value: string }) {
   );
 }
 
-function DocsToc({ brand }: { brand: VbrandType }) {
+function DocsToc({ content }: { content: DocsTocContent }) {
   const entries = ['Overview', 'Voice', 'Color tokens', 'Typography'];
   return (
     <Box
@@ -174,7 +188,7 @@ function DocsToc({ brand }: { brand: VbrandType }) {
     >
       <Stack style={{ gap: '12px' }}>
         <span style={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-neutral-500, #6b7280)' }}>
-          {brand.name} on this page
+          {content.heading}
         </span>
         <Stack style={{ gap: '4px' }}>
           {entries.map((e) => (

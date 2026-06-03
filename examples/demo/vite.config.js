@@ -20,6 +20,8 @@ export default defineConfig({
       '@booga/vbrand/adapters/browser': path.resolve(root, 'dist/adapters-browser.js'),
       '@booga/vbrand/templates': path.resolve(root, 'dist/templates.js'),
       '@booga/vbrand/composition': path.resolve(root, 'dist/composition.js'),
+      '@booga/vbrand/content': path.resolve(root, 'dist/content.js'),
+      '@booga/vbrand/interactivity': path.resolve(root, 'dist/interactivity.js'),
     },
   },
 });
