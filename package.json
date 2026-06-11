@@ -1,6 +1,6 @@
 {
   "name": "@booga/vbrand",
-  "version": "0.4.0-alpha.4.2.1",
+  "version": "0.4.0-alpha.4.2.2",
   "description": "Active brand-operations layer: pull brand surfaces, fuse into canonical schema, emit deterministic assets, audit for drift, publish portable bundles.",
   "type": "module",
   "bin": {
@@ -50,7 +50,7 @@
   ],
   "scripts": {
     "build": "node scripts/build-tailwind-bundle.mjs && tsup && node scripts/check-no-triple-hyphen.mjs",
-    "typecheck": "node scripts/build-tailwind-bundle.mjs && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint src tests --max-warnings 0",
     "test": "vitest run --coverage",
     "test:watch": "vitest",

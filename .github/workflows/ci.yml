@@ -41,6 +41,9 @@ jobs:
       - name: install
         run: bun install --frozen-lockfile
 
+      - name: build
+        run: bun run build
+
       - name: typecheck
         run: bun run typecheck
 
@@ -52,9 +55,6 @@ jobs:
 
       - name: scrub
         run: bash .github/scripts/scrub.sh .
-
-      - name: build
-        run: bun run build
 
       - name: determinism-check
         run: |
