@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { TemplateId, InteractivityMode } from './router';
 import { buildSearchString, DEFAULT_MODE } from './router';
 
@@ -29,6 +29,7 @@ const BRAND_EXAMPLES: Array<{ label: string; value: string }> = [
 export function NavBar({ currentBrand, currentTemplate, currentMode, isLoading, dataViewHref, onDataViewNavigate }: NavBarProps) {
   const [brandInput, setBrandInput] = useState(currentBrand);
   const activeMode = currentMode ?? DEFAULT_MODE;
+  const detailsRef = useRef<HTMLDetailsElement>(null);
 
   function applySearch(brand: string, template: TemplateId, mode: InteractivityMode) {
     const search = buildSearchString(brand, template, mode);
@@ -47,8 +48,18 @@ export function NavBar({ currentBrand, currentTemplate, currentMode, isLoading, 
     if (e.key === 'Enter') handleBrandLoad();
   }
 
+  function handleBrandInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    setBrandInput(value);
+    if (BRAND_EXAMPLES.some((ex) => ex.value === value)) {
+      applySearch(value, currentTemplate, activeMode);
+    }
+  }
+
   function loadExample(value: string) {
     setBrandInput(value);
+    applySearch(value, currentTemplate, activeMode);
+    if (detailsRef.current) detailsRef.current.open = false;
   }
 
   function handleDataViewClick(e: React.MouseEvent<HTMLAnchorElement>) {
@@ -71,14 +82,15 @@ export function NavBar({ currentBrand, currentTemplate, currentMode, isLoading, 
       }}
     >
       <span style={{ fontWeight: 700, color: 'var(--color-primary, #6366f1)', flexShrink: 0 }}>
-        vBrand 0.4.0-alpha.4
+        vBrand 0.4.0-alpha.4.2
       </span>
 
       <span style={{ color: 'var(--color-neutral-400, #9ca3af)', flexShrink: 0 }}>brand:</span>
       <input
         value={brandInput}
-        onChange={(e) => setBrandInput(e.target.value)}
+        onChange={handleBrandInputChange}
         onKeyDown={handleKeyDown}
+        list="brand-input-list"
         placeholder="fixture:stripe | github:owner/repo | npm:pkg | https://..."
         style={{
           flex: '1 1 300px',
@@ -90,6 +102,11 @@ export function NavBar({ currentBrand, currentTemplate, currentMode, isLoading, 
           minWidth: 0,
         }}
       />
+      <datalist id="brand-input-list">
+        {BRAND_EXAMPLES.map((ex) => (
+          <option key={ex.value} value={ex.value} />
+        ))}
+      </datalist>
 
       <select
         value={currentTemplate}
@@ -166,7 +183,11 @@ export function NavBar({ currentBrand, currentTemplate, currentMode, isLoading, 
         {isLoading ? 'Loading...' : 'Load'}
       </button>
 
-      <details style={{ flexShrink: 0, position: 'relative' }}>
+      <details
+        ref={detailsRef}
+        style={{ flexShrink: 0, position: 'relative' }}
+        onKeyDown={(e) => { if (e.key === 'Escape' && detailsRef.current) detailsRef.current.open = false; }}
+      >
         <summary
           style={{
             cursor: 'pointer',
@@ -182,19 +203,23 @@ export function NavBar({ currentBrand, currentTemplate, currentMode, isLoading, 
           style={{
             position: 'absolute',
             top: '100%',
-            left: 0,
+            right: 0,
             background: 'var(--color-neutral-50, #f9fafb)',
             border: '1px solid var(--color-neutral-200, #e5e7eb)',
             borderRadius: '4px',
             padding: '4px',
             zIndex: 50,
             minWidth: '200px',
+            maxWidth: 'min(280px, calc(100vw - 32px))',
+            maxHeight: '60vh',
+            overflowY: 'auto',
           }}
         >
           {BRAND_EXAMPLES.map((ex) => (
             <button
               key={ex.value}
               onClick={() => loadExample(ex.value)}
+              {...(ex.value.startsWith('fixture:') ? { 'data-fixture-handle': ex.value.slice('fixture:'.length) } : {})}
               style={{
                 display: 'block',
                 width: '100%',

@@ -12,6 +12,7 @@ import {
   deriveDocsTocContent,
 } from './content-derivers.js';
 import { applyContentOverride } from '../content/apply.js';
+import { markIsland } from '../interactivity/islands.js';
 
 const SECTION_IDS = ['sidebar', 'article', 'toc'] as const;
 type DocsSectionId = (typeof SECTION_IDS)[number];
@@ -59,7 +60,7 @@ export const docsTemplate: AppTypeTemplate = {
         <Box as="main" style={{ flex: 1, padding: '32px', maxWidth: '800px' }}>
           {hasArticle && <DocsArticle brand={brand} content={articleContent} />}
         </Box>
-        {hasToc && <DocsToc content={tocContent} />}
+        {hasToc && markIsland(<DocsToc content={tocContent} />, 'docs.toc')}
       </Box>
     );
   },

@@ -6,12 +6,7 @@ import type { BrandParams } from './router';
 
 const adapter = new BrowserBrandSourceAdapter();
 
-// Demo-local fallback palette applied when the loaded brand carries no
-// `tokens.color` entries. Surfaces a "color fallback active" badge in the
-// data view so the visitor sees the degradation honestly. Per template-view
-// option B for the 0.4.0-alpha.2 colors-extract dynamic-render-required
-// degradation: cheaper than re-publishing a vfixtures patch when a non-stripe
-// brand source has empty tokens.color.
+// Avoids a vfixtures re-publish cycle when a brand source returns no color tokens.
 const FALLBACK_PALETTE: Record<string, string> = {
   primary: '#6366f1',
   secondary: '#0a2540',
@@ -28,10 +23,7 @@ const FALLBACK_PALETTE: Record<string, string> = {
   info: '#3b82f6',
 };
 
-// Bundled relative-path overrides applied per-fixture so the data view shows
-// a gh-pages-resolvable asset URL instead of a live upstream URL. Each entry
-// resolves against vite's `base` (e.g. `/vBrand/assets/stripe-com/favicon.svg`).
-// Adds bug-1 honest-rendering of the favicon source string.
+// gh-pages cannot reliably serve live upstream favicon URLs; relative paths resolve from the build base.
 const BUNDLED_FAVICON: Record<string, { source: string; sizes: number[] }> = {
   stripe: { source: 'assets/stripe-com/favicon.svg', sizes: [16, 32, 180, 512] },
 };
@@ -44,6 +36,7 @@ export interface BrandLoadResult {
 export interface BrandMeta {
   colorFallbackActive: boolean;
   faviconBundled: boolean;
+  githubColorFallback: boolean;
 }
 
 export async function loadBrand(params: BrandParams): Promise<BrandLoadResult> {
@@ -62,8 +55,8 @@ function loadBrandRaw(params: BrandParams): Promise<VbrandType> {
   }
 }
 
-function applyDemoOverlay(brand: VbrandType, params: BrandParams): BrandLoadResult {
-  const meta: BrandMeta = { colorFallbackActive: false, faviconBundled: false };
+export function applyDemoOverlay(brand: VbrandType, params: BrandParams): BrandLoadResult {
+  const meta: BrandMeta = { colorFallbackActive: false, faviconBundled: false, githubColorFallback: false };
   let overlay: VbrandType = brand;
 
   const colorCount = Object.keys(overlay.tokens.color).length;
@@ -73,6 +66,7 @@ function applyDemoOverlay(brand: VbrandType, params: BrandParams): BrandLoadResu
       tokens: { ...overlay.tokens, color: { ...FALLBACK_PALETTE } },
     };
     meta.colorFallbackActive = true;
+    if (params.type === 'github') meta.githubColorFallback = true;
   }
 
   const bundled = params.type === 'fixture' ? BUNDLED_FAVICON[params.handle] : undefined;

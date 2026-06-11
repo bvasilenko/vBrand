@@ -12,6 +12,7 @@ export default defineConfig({
       '@booga/vbrand/composition':      path.resolve('./dist/composition.js'),
       '@booga/vbrand/content':          path.resolve('./dist/content.js'),
       '@booga/vbrand/interactivity':    path.resolve('./dist/interactivity.js'),
+      '@booga/vbrand/ssr':              path.resolve('./src/ssr/index.js'),
     },
   },
   test: {

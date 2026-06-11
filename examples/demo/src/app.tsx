@@ -11,7 +11,7 @@ import { applyBrandTokens, clearBrandTokens } from './brand-tokens';
 import { ParkNotice } from './park-notice';
 import { formatZodError } from './zod-error-format';
 
-const DEFAULT_META: BrandMeta = { colorFallbackActive: false, faviconBundled: false };
+const DEFAULT_META: BrandMeta = { colorFallbackActive: false, faviconBundled: false, githubColorFallback: false };
 
 function viteBase(): string {
   return (typeof import.meta !== 'undefined' && (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL) ?? '/';

@@ -43,8 +43,8 @@ describe('render mode safety: all template x mode combinations produce output wi
   it.each(ALL_COMBINATIONS)('%s / %s: does not throw', (templateId, mode) => {
     const tree = getTree(templateId);
     const invoke =
-      mode === 'static' ? () => staticRender(tree) :
-      mode === 'hybrid' ? () => hybridRender(tree) :
+      mode === 'static' ? () => staticRender({ brand, sections: [tree] }) :
+      mode === 'hybrid' ? () => hybridRender({ brand, sections: [tree] }) :
       () => spaRender(tree);
     expect(invoke).not.toThrow();
   });
@@ -52,62 +52,65 @@ describe('render mode safety: all template x mode combinations produce output wi
 
 describe('staticRender: output contract for real template trees', () => {
   it.each([...TEMPLATE_IDS])('%s: output is a non-empty string', (id) => {
-    expect(staticRender(getTree(id)).length).toBeGreaterThan(0);
+    expect(staticRender({ brand, sections: [getTree(id)] }).length).toBeGreaterThan(0);
   });
 
   it.each([...TEMPLATE_IDS])('%s: output contains no <script> tags', (id) => {
-    const html = staticRender(getTree(id));
+    const html = staticRender({ brand, sections: [getTree(id)] });
     expect(html).not.toContain('<script');
     expect(html).not.toContain('</script>');
   });
 
   it.each([...TEMPLATE_IDS])('%s: output contains no data-react attributes', (id) => {
-    expect(staticRender(getTree(id))).not.toMatch(/data-react/);
+    expect(staticRender({ brand, sections: [getTree(id)] })).not.toMatch(/data-react/);
   });
 
   it.each([...TEMPLATE_IDS])('%s: output contains brand-specific text from the stripe fixture', (id) => {
-    expect(staticRender(getTree(id))).toContain(brand.name);
+    expect(staticRender({ brand, sections: [getTree(id)] })).toContain(brand.name);
   });
 
   it.each([...TEMPLATE_IDS])('%s: two calls with the same default composition produce identical output', (id) => {
-    expect(staticRender(getTree(id))).toBe(staticRender(getTree(id)));
+    expect(staticRender({ brand, sections: [getTree(id)] })).toBe(staticRender({ brand, sections: [getTree(id)] }));
   });
 });
 
 describe('hybridRender: output contract for real template trees', () => {
-  it.each([...TEMPLATE_IDS])('%s: html field equals staticRender output for the same tree', (id) => {
-    expect(hybridRender(getTree(id)).html).toBe(staticRender(getTree(id)));
+  it.each([...TEMPLATE_IDS])('%s: html field is the full-document output with manifest script injected before </head>', (id) => {
+    const props = { brand, sections: [getTree(id)] };
+    const srHtml = staticRender(props);
+    const hrResult = hybridRender(props);
+    const expectedHtml = srHtml.replace('</head>', `<script type="application/json" id="__VBRAND_ISLANDS__">${JSON.stringify(hrResult.islands)}</script></head>`);
+    expect(hrResult.html).toBe(expectedHtml);
   });
 
   it.each([...TEMPLATE_IDS])('%s: islands field is an array', (id) => {
-    expect(Array.isArray(hybridRender(getTree(id)).islands)).toBe(true);
+    expect(Array.isArray(hybridRender({ brand, sections: [getTree(id)] }).islands)).toBe(true);
   });
 
   it.each([...TEMPLATE_IDS])('%s: every island entry has a non-empty string id', (id) => {
-    for (const island of hybridRender(getTree(id)).islands) {
+    for (const island of hybridRender({ brand, sections: [getTree(id)] }).islands) {
       expect(typeof island.id).toBe('string');
       expect(island.id.length).toBeGreaterThan(0);
     }
   });
 
   it.each([...TEMPLATE_IDS])('%s: every island selector follows the [data-island="id"] pattern', (id) => {
-    for (const island of hybridRender(getTree(id)).islands) {
+    for (const island of hybridRender({ brand, sections: [getTree(id)] }).islands) {
       expect(island.selector).toBe(`[data-island="${island.id}"]`);
     }
   });
 
   it.each([...TEMPLATE_IDS])('%s: result is JSON-serializable (islands are plain objects)', (id) => {
-    expect(() => JSON.stringify(hybridRender(getTree(id)))).not.toThrow();
+    expect(() => JSON.stringify(hybridRender({ brand, sections: [getTree(id)] }))).not.toThrow();
   });
 
-  it.each([...TEMPLATE_IDS])('%s: html field contains no <script> tags', (id) => {
-    const html = hybridRender(getTree(id)).html;
-    expect(html).not.toContain('<script');
-    expect(html).not.toContain('</script>');
+  it.each([...TEMPLATE_IDS])('%s: html field contains no executable <script> tags (only JSON manifest)', (id) => {
+    const html = hybridRender({ brand, sections: [getTree(id)] }).html;
+    expect(html).not.toMatch(/<script(?![^>]*type="application\/json")/);
   });
 
   it.each([...TEMPLATE_IDS])('%s: html field contains no data-react* attributes', (id) => {
-    expect(hybridRender(getTree(id)).html).not.toMatch(/data-react/);
+    expect(hybridRender({ brand, sections: [getTree(id)] }).html).not.toMatch(/data-react/);
   });
 });
 
@@ -128,21 +131,21 @@ describe('spaRender: passthrough contract for real template trees', () => {
 describe('render mode non-interference: render calls do not mutate the source tree', () => {
   it.each([...TEMPLATE_IDS])('%s: staticRender does not mutate the tree (spaRender still returns same ref)', (id) => {
     const tree = getTree(id);
-    staticRender(tree);
+    staticRender({ brand, sections: [tree] });
     expect(spaRender(tree)).toBe(tree);
   });
 
   it.each([...TEMPLATE_IDS])('%s: hybridRender does not mutate the tree (spaRender still returns same ref)', (id) => {
     const tree = getTree(id);
-    hybridRender(tree);
+    hybridRender({ brand, sections: [tree] });
     expect(spaRender(tree)).toBe(tree);
   });
 
   it.each([...TEMPLATE_IDS])('%s: staticRender output is identical before and after hybridRender is called', (id) => {
     const tree = getTree(id);
-    const before = staticRender(tree);
-    hybridRender(tree);
-    expect(staticRender(tree)).toBe(before);
+    const before = staticRender({ brand, sections: [tree] });
+    hybridRender({ brand, sections: [tree] });
+    expect(staticRender({ brand, sections: [tree] })).toBe(before);
   });
 });
 
@@ -153,9 +156,9 @@ describe('render mode + content override orthogonality: override value is presen
       const template = TEMPLATE_REGISTRY[id];
       const tree = template.compose(brand, template.defaultComposition(), override) as React.ReactElement;
       const html =
-        mode === 'static' ? staticRender(tree) :
-        mode === 'hybrid' ? hybridRender(tree).html :
-        staticRender(spaRender(tree) as React.ReactElement);
+        mode === 'static' ? staticRender({ brand, sections: [tree] }) :
+        mode === 'hybrid' ? hybridRender({ brand, sections: [tree] }).html :
+        staticRender({ brand, sections: [spaRender(tree) as React.ReactElement] });
       expect(html).toContain(OVERRIDE_SENTINEL);
     },
   );
@@ -166,8 +169,8 @@ describe('render mode + content override orthogonality: override value is presen
       const template = TEMPLATE_REGISTRY[id];
       const invoke = () => {
         const tree = template.compose(brand, template.defaultComposition(), override) as React.ReactElement;
-        if (mode === 'static') staticRender(tree);
-        else if (mode === 'hybrid') hybridRender(tree);
+        if (mode === 'static') staticRender({ brand, sections: [tree] });
+        else if (mode === 'hybrid') hybridRender({ brand, sections: [tree] });
         else spaRender(tree);
       };
       expect(invoke).not.toThrow();

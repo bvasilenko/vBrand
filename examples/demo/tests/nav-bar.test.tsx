@@ -290,26 +290,29 @@ describe('NavBar: brand input initializes from currentBrand prop', () => {
   );
 });
 
-describe('NavBar: example preset buttons load into brand input without navigating', () => {
-  it('clicking an example button does not trigger navigation', () => {
+describe('NavBar: example preset buttons trigger navigation on click', () => {
+  it('clicking an example button triggers navigation with the fixture brand value', () => {
     renderNavBar();
     const buttons = exampleButtons();
     expect(buttons.length).toBeGreaterThan(0);
     act(() => buttons[0]!.click());
-    expect(navigations).toHaveLength(0);
+    expect(navigations).toHaveLength(1);
+    expect(navigations[0]).toContain('brand=fixture');
   });
 
-  it('clicking an example button populates the brand input with a non-empty value', () => {
+  it('clicking an example button applies the fixture value as the brand param', () => {
     renderNavBar();
     act(() => exampleButtons()[0]!.click());
-    expect(brandInput().value.length).toBeGreaterThan(0);
+    expect(navigations[0]).toContain('brand=fixture%3Astripe');
   });
 
-  it('clicking multiple example buttons does not produce navigation', () => {
+  it('each fixture button triggers exactly one navigation when clicked', () => {
     renderNavBar();
     const buttons = exampleButtons();
-    for (const btn of buttons) act(() => btn.click());
-    expect(navigations).toHaveLength(0);
+    for (let i = 0; i < buttons.length; i++) {
+      act(() => buttons[i]!.click());
+      expect(navigations).toHaveLength(i + 1);
+    }
   });
 });
 
@@ -536,5 +539,222 @@ describe('NavBar: navigation hash policy', () => {
     pressEnterInBrandInput();
     expect(hrefNavigations).toHaveLength(0);
     expect(navigations).toHaveLength(1);
+  });
+});
+
+const BRAND_EXAMPLE_VALUES = [
+  'fixture:stripe',
+  'fixture:vercel',
+  'fixture:linear',
+  'fixture:notion',
+  'fixture:github',
+  'github:bvasilenko/vBrand',
+  'npm:@booga/vbrand',
+] as const;
+
+function detailsElement(): HTMLDetailsElement {
+  return container.querySelector('details') as HTMLDetailsElement;
+}
+
+function brandInputDatalist(): HTMLDataListElement | null {
+  const inp = brandInput();
+  const listId = inp.getAttribute('list');
+  return listId ? (container.ownerDocument.getElementById(listId) as HTMLDataListElement | null) : null;
+}
+
+function simulateBrandInputChange(value: string): void {
+  act(() => {
+    const inp = brandInput();
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      'value',
+    )!.set!;
+    nativeSetter.call(inp, value);
+    inp.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
+describe('NavBar: brand input datalist element', () => {
+  it('brand input has a list attribute referencing a datalist', () => {
+    renderNavBar();
+    expect(brandInput().getAttribute('list')).toBeTruthy();
+    expect(brandInputDatalist()).not.toBeNull();
+  });
+
+  it('datalist is a <datalist> element', () => {
+    renderNavBar();
+    expect(brandInputDatalist()!.tagName.toLowerCase()).toBe('datalist');
+  });
+
+  it('datalist contains one option per BRAND_EXAMPLES entry', () => {
+    renderNavBar();
+    const datalist = brandInputDatalist()!;
+    expect(datalist.options.length).toBe(BRAND_EXAMPLE_VALUES.length);
+  });
+
+  it.each(BRAND_EXAMPLE_VALUES)(
+    'datalist includes an option with value "%s"',
+    (value) => {
+      renderNavBar();
+      const options = [...brandInputDatalist()!.options].map((o) => o.value);
+      expect(options).toContain(value);
+    },
+  );
+
+  it('every datalist option value is a non-empty string', () => {
+    renderNavBar();
+    const options = [...brandInputDatalist()!.options];
+    for (const opt of options) {
+      expect(opt.value.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('datalist option values are unique (no duplicates)', () => {
+    renderNavBar();
+    const values = [...brandInputDatalist()!.options].map((o) => o.value);
+    expect(new Set(values).size).toBe(values.length);
+  });
+});
+
+describe('NavBar: brand input change auto-submits on known example values', () => {
+  it('changing input to a known example value triggers exactly one navigation', () => {
+    renderNavBar({ currentBrand: '' });
+    simulateBrandInputChange('fixture:stripe');
+    expect(navigations).toHaveLength(1);
+  });
+
+  it.each(BRAND_EXAMPLE_VALUES)(
+    'changing to "%s" triggers navigation with that brand value',
+    (value) => {
+      renderNavBar({ currentBrand: '' });
+      simulateBrandInputChange(value);
+      expect(navigations).toHaveLength(1);
+      expect(new URLSearchParams(navigations[0]).get('brand')).toBe(value);
+    },
+  );
+
+  it('auto-submit navigation preserves the current template', () => {
+    renderNavBar({ currentTemplate: 'docs' });
+    simulateBrandInputChange('fixture:linear');
+    expect(new URLSearchParams(navigations[0]).get('app')).toBe('docs');
+  });
+
+  it('auto-submit navigation preserves the current mode', () => {
+    renderNavBar({ currentMode: 'static' });
+    simulateBrandInputChange('fixture:vercel');
+    expect(new URLSearchParams(navigations[0]).get('mode')).toBe('static');
+  });
+
+  it('changing to a partial value that is a prefix of a known example does NOT trigger navigation', () => {
+    renderNavBar();
+    simulateBrandInputChange('fixture:str');
+    expect(navigations).toHaveLength(0);
+  });
+
+  it('changing to an unknown brand string does NOT trigger navigation', () => {
+    renderNavBar();
+    simulateBrandInputChange('github:some/unknown-repo');
+    expect(navigations).toHaveLength(0);
+  });
+
+  it('changing to an empty string does NOT trigger navigation', () => {
+    renderNavBar();
+    simulateBrandInputChange('');
+    expect(navigations).toHaveLength(0);
+  });
+
+  it('successive changes to non-example values produce no navigations', () => {
+    renderNavBar();
+    simulateBrandInputChange('https://partial');
+    simulateBrandInputChange('https://partial.com');
+    simulateBrandInputChange('npm:@some/pkg');
+    expect(navigations).toHaveLength(0);
+  });
+
+  it('auto-submit navigation search string equals buildSearchString for the selected example', () => {
+    renderNavBar({ currentTemplate: 'marketing', currentMode: 'hybrid' });
+    simulateBrandInputChange('fixture:notion');
+    expect(navigations[0]).toBe(buildSearchString('fixture:notion', 'marketing', 'hybrid'));
+  });
+
+  it('auto-submit navigation is round-trip parseable by parseRoute', () => {
+    renderNavBar({ currentTemplate: 'dashboard' });
+    simulateBrandInputChange('fixture:github');
+    const route = parseRoute(navigations[0]!);
+    expect(route.brandParams).toEqual({ type: 'fixture', handle: 'github' });
+    expect(route.templateId).toBe('dashboard');
+  });
+});
+
+describe('NavBar: examples details keyboard navigation', () => {
+  it('pressing Escape on the details element sets open to false', () => {
+    renderNavBar();
+    const det = detailsElement();
+    act(() => { det.open = true; });
+    act(() => {
+      det.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(det.open).toBe(false);
+  });
+
+  it('pressing Escape on a child button closes the details panel (event bubbles)', () => {
+    renderNavBar();
+    const det = detailsElement();
+    act(() => { det.open = true; });
+    act(() => {
+      const btn = exampleButtons()[0]!;
+      btn.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(det.open).toBe(false);
+  });
+
+  it('pressing Tab does NOT close the details panel', () => {
+    renderNavBar();
+    const det = detailsElement();
+    act(() => { det.open = true; });
+    act(() => {
+      det.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    });
+    expect(det.open).toBe(true);
+  });
+
+  it('pressing Enter does NOT close the details panel', () => {
+    renderNavBar();
+    const det = detailsElement();
+    act(() => { det.open = true; });
+    act(() => {
+      det.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    expect(det.open).toBe(true);
+  });
+
+  it('Escape on a closed details panel leaves it closed without error', () => {
+    renderNavBar();
+    const det = detailsElement();
+    expect(det.open).toBe(false);
+    expect(() => act(() => {
+      det.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    })).not.toThrow();
+    expect(det.open).toBe(false);
+  });
+
+  it('panel can be re-opened after an Escape close', () => {
+    renderNavBar();
+    const det = detailsElement();
+    act(() => { det.open = true; });
+    act(() => {
+      det.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(det.open).toBe(false);
+    act(() => { det.open = true; });
+    expect(det.open).toBe(true);
+  });
+
+  it('clicking a fixture button closes the details panel', () => {
+    renderNavBar();
+    const det = detailsElement();
+    act(() => { det.open = true; });
+    act(() => exampleButtons()[0]!.click());
+    expect(det.open).toBe(false);
   });
 });

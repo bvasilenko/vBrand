@@ -2,6 +2,7 @@
 // Copyright (c) 2026 bvasilenko
 import type { VbrandType } from '../../schema.js';
 import { classifyFetchError } from './cors-error.js';
+import { deriveGithubBrandColor } from './github-color.js';
 
 const GH_API = 'https://api.github.com';
 const GH_UA = 'vbrand/0.4.0';
@@ -13,6 +14,7 @@ interface GitHubRepoResponse {
   owner: { login: string; avatar_url: string };
   homepage: string | null;
   topics?: string[];
+  language: string | null;
 }
 
 export async function buildBrandFromGitHubMetadata(
@@ -35,6 +37,7 @@ export async function buildBrandFromGitHubMetadata(
   const displayName = data.full_name ?? `${owner}/${repo}`;
   const description = data.description ?? displayName;
   const avatarUrl = data.owner?.avatar_url ?? `https://github.com/${owner}.png`;
+  const primaryColor = deriveGithubBrandColor(data.language);
 
   return {
     name: displayName,
@@ -47,7 +50,10 @@ export async function buildBrandFromGitHubMetadata(
       og: { dimensions: [1200, 630] },
       icons: { source: avatarUrl, set: [] },
     },
-    tokens: { color: {}, type: {} },
+    tokens: {
+      color: primaryColor != null ? { primary: primaryColor } : {},
+      type: {},
+    },
     sources: [`github:${owner}/${repo}`],
   };
 }

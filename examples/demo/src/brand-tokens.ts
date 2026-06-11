@@ -4,7 +4,7 @@ import type { VbrandType } from '@booga/vbrand/adapters/browser';
 
 type TokenRecord = Record<string, string>;
 
-const CATEGORY_PREFIXES: Array<[keyof VbrandType['tokens'], string[]]> = [
+export const CATEGORY_PREFIXES: Array<[keyof VbrandType['tokens'], string[]]> = [
   ['color',   ['--color-']],
   ['type',    ['--type-', '--font-']],
   ['spacing', ['--spacing-']],

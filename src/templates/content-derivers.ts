@@ -136,16 +136,21 @@ export function deriveDashboardGridContent() {
 export function deriveThemeOverride(brand: VbrandType): Record<string, string> {
   const overrides: Record<string, string> = {};
   if (brand.tokens.color['primary']) {
-    overrides['--color-primary'] = brand.tokens.color['primary'];
+    overrides['color-primary'] = brand.tokens.color['primary'];
   }
   if (brand.tokens.color['secondary']) {
-    overrides['--color-secondary'] = brand.tokens.color['secondary'];
+    overrides['color-secondary'] = brand.tokens.color['secondary'];
   }
   if (brand.tokens.type['body']) {
-    overrides['--font-body'] = brand.tokens.type['body'];
+    overrides['font-body'] = brand.tokens.type['body'];
   }
   if (brand.tokens.type['heading']) {
-    overrides['--font-heading'] = brand.tokens.type['heading'];
+    overrides['font-heading'] = brand.tokens.type['heading'];
   }
   return overrides;
+}
+
+export function deriveThemeCssVars(brand: VbrandType): Record<string, string> {
+  const bare = deriveThemeOverride(brand);
+  return Object.fromEntries(Object.entries(bare).map(([k, v]) => [`--${k}`, v]));
 }

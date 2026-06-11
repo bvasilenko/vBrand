@@ -20,6 +20,7 @@ import {
 } from './content-derivers.js';
 import type { Density } from '../composition/spec.js';
 import { applyContentOverride } from '../content/apply.js';
+import { markIsland } from '../interactivity/islands.js';
 
 const SECTION_IDS = ['hero', 'testimonials', 'pricing', 'cta', 'footer'] as const;
 type MarketingSectionId = (typeof SECTION_IDS)[number];
@@ -59,7 +60,7 @@ function renderSection(
   const d = density as Density;
   switch (id) {
     case 'hero':
-      return <HeroSplit key="hero" content={applyContentOverride(deriveHeroContent(brand, d), content, 'marketing.hero')} theme={theme} />;
+      return markIsland(<HeroSplit content={applyContentOverride(deriveHeroContent(brand, d), content, 'marketing.hero')} theme={theme} />, 'marketing.hero');
     case 'testimonials':
       return (
         <TestimonialGrid
@@ -71,7 +72,7 @@ function renderSection(
     case 'pricing':
       return <PricingSection key="pricing" brand={brand} content={applyContentOverride(deriveMarketingPricingContent(brand), content, 'marketing.pricing')} />;
     case 'cta':
-      return <CtaCentered key="cta" content={applyContentOverride(deriveCtaContent(brand, d), content, 'marketing.cta')} theme={theme} />;
+      return markIsland(<CtaCentered content={applyContentOverride(deriveCtaContent(brand, d), content, 'marketing.cta')} theme={theme} />, 'marketing.cta');
     case 'footer':
       return <FooterSplit key="footer" content={applyContentOverride(deriveFooterContent(brand, d), content, 'marketing.footer')} theme={theme} />;
   }
