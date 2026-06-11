@@ -13,6 +13,10 @@ export default defineConfig({
   testDir: path.join(__dirname, 'tests/runtime-probe'),
   timeout: 30_000,
   retries: process.env['CI'] ? 2 : 0,
+  reporter: [
+    ['list'],
+    [path.join(__dirname, 'tests/runtime-probe/verdict-reporter.ts')],
+  ],
   use: {
     baseURL: PREVIEW_URL,
   },

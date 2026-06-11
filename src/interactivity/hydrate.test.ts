@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import React from 'react';
 import { hydrateIslands, collectIslands, markIsland } from './islands.js';
-import { staticRender } from './render-shapes.js';
+import { renderBodyFragment } from './render-shapes.js';
 
 vi.mock('react-dom/client', () => ({
   hydrateRoot: vi.fn(),
@@ -36,7 +36,7 @@ describe('hydrateIslands: empty manifest', () => {
 describe('hydrateIslands: single island present in DOM', () => {
   it('calls hydrateRoot exactly once', async () => {
     const { hydrateRoot } = await import('react-dom/client');
-    const html = staticRender(markIsland(React.createElement('span', null, 'Solo'), 'solo'));
+    const html = renderBodyFragment([markIsland(React.createElement('span', null, 'Solo'), 'solo')]);
     seedDocument(html);
     await hydrateIslands(collectIslands(html), () => React.createElement('span', null, 'x'));
     expect(hydrateRoot).toHaveBeenCalledTimes(1);
@@ -50,7 +50,7 @@ describe('hydrateIslands: multiple islands all present in DOM', () => {
       markIsland(React.createElement('h1', null, 'Title'), 'hero'),
       markIsland(React.createElement('footer', null, 'Footer'), 'footer'),
     );
-    const html = staticRender(tree);
+    const html = renderBodyFragment([tree]);
     seedDocument(html);
     const manifest = collectIslands(html);
     expect(manifest).toHaveLength(2);
@@ -62,7 +62,7 @@ describe('hydrateIslands: multiple islands all present in DOM', () => {
 describe('hydrateIslands: partial match - some entries absent from DOM', () => {
   it('calls hydrateRoot only for entries whose selectors match a DOM element', async () => {
     const { hydrateRoot } = await import('react-dom/client');
-    const html = staticRender(markIsland(React.createElement('span', null, 'Present'), 'present'));
+    const html = renderBodyFragment([markIsland(React.createElement('span', null, 'Present'), 'present')]);
     seedDocument(html);
     const manifest = [
       { id: 'present', selector: '[data-island="present"]', propsHash: '' },
@@ -88,7 +88,7 @@ describe('hydrateIslands: partial match - some entries absent from DOM', () => {
 describe('hydrateIslands: component identity passed to hydrateRoot', () => {
   it('passes the ReactNode returned by getComponent as the second argument to hydrateRoot', async () => {
     const { hydrateRoot } = await import('react-dom/client');
-    const html = staticRender(markIsland(React.createElement('span', null, 'A'), 'a'));
+    const html = renderBodyFragment([markIsland(React.createElement('span', null, 'A'), 'a')]);
     seedDocument(html);
     const manifest = collectIslands(html);
     const sentinel = React.createElement('span', { 'data-sentinel': 'identity' }, 'unique');
@@ -98,7 +98,7 @@ describe('hydrateIslands: component identity passed to hydrateRoot', () => {
 
   it('passes the correct DOM element (matching the selector) as the first argument to hydrateRoot', async () => {
     const { hydrateRoot } = await import('react-dom/client');
-    const html = staticRender(markIsland(React.createElement('span', null, 'A'), 'target'));
+    const html = renderBodyFragment([markIsland(React.createElement('span', null, 'A'), 'target')]);
     seedDocument(html);
     const manifest = collectIslands(html);
     await hydrateIslands(manifest, () => React.createElement('span', null, 'x'));
@@ -127,7 +127,7 @@ describe('hydrateIslands: getComponent invocation contract', () => {
       markIsland(React.createElement('span', null, 'A'), 'a'),
       markIsland(React.createElement('span', null, 'B'), 'b'),
     );
-    const html = staticRender(tree);
+    const html = renderBodyFragment([tree]);
     seedDocument(html);
     const getComponent = vi.fn(() => React.createElement('span', null, 'x'));
     await hydrateIslands(collectIslands(html), getComponent);
@@ -140,7 +140,7 @@ describe('hydrateIslands: getComponent invocation contract', () => {
       markIsland(React.createElement('span', null, 'Second'), 'second'),
       markIsland(React.createElement('span', null, 'Third'), 'third'),
     );
-    const html = staticRender(tree);
+    const html = renderBodyFragment([tree]);
     seedDocument(html);
     const callOrder: string[] = [];
     await hydrateIslands(collectIslands(html), (id) => {
@@ -151,7 +151,7 @@ describe('hydrateIslands: getComponent invocation contract', () => {
   });
 
   it('getComponent receives the island id string matching the manifest entry', async () => {
-    const html = staticRender(markIsland(React.createElement('span', null, 'X'), 'exact-id-123'));
+    const html = renderBodyFragment([markIsland(React.createElement('span', null, 'X'), 'exact-id-123')]);
     seedDocument(html);
     const receivedIds: string[] = [];
     await hydrateIslands(collectIslands(html), (id) => {
@@ -169,7 +169,7 @@ describe('hydrateIslands: custom IslandQueryContext doc parameter', () => {
     const el = document.createElement('div');
     el.setAttribute('data-island', 'alt');
     const customDoc = { querySelector: vi.fn((_selector: string) => el) };
-    const html = staticRender(markIsland(React.createElement('span', null, 'X'), 'alt'));
+    const html = renderBodyFragment([markIsland(React.createElement('span', null, 'X'), 'alt')]);
     const manifest = collectIslands(html);
     await hydrateIslands(manifest, () => React.createElement('span', null, 'x'), customDoc);
     expect(customDoc.querySelector).toHaveBeenCalledWith('[data-island="alt"]');
@@ -179,14 +179,14 @@ describe('hydrateIslands: custom IslandQueryContext doc parameter', () => {
   it('does not touch the global document when a custom context is provided', async () => {
     const globalSpy = vi.spyOn(document, 'querySelector');
     const customDoc = { querySelector: vi.fn(() => null) };
-    const html = staticRender(markIsland(React.createElement('span', null, 'X'), 'isolated'));
+    const html = renderBodyFragment([markIsland(React.createElement('span', null, 'X'), 'isolated')]);
     const manifest = collectIslands(html);
     await hydrateIslands(manifest, () => React.createElement('span', null, 'x'), customDoc);
     expect(globalSpy).not.toHaveBeenCalled();
   });
 
   it('falls back to the global document when no context argument is passed', async () => {
-    const html = staticRender(markIsland(React.createElement('span', null, 'Default'), 'def-fallback'));
+    const html = renderBodyFragment([markIsland(React.createElement('span', null, 'Default'), 'def-fallback')]);
     seedDocument(html);
     const globalSpy = vi.spyOn(document, 'querySelector');
     const manifest = collectIslands(html);
@@ -197,7 +197,7 @@ describe('hydrateIslands: custom IslandQueryContext doc parameter', () => {
   it('does not call hydrateRoot when the custom context returns null for all selectors', async () => {
     const { hydrateRoot } = await import('react-dom/client');
     const customDoc = { querySelector: vi.fn(() => null) };
-    const html = staticRender(markIsland(React.createElement('span', null, 'X'), 'no-match'));
+    const html = renderBodyFragment([markIsland(React.createElement('span', null, 'X'), 'no-match')]);
     const manifest = collectIslands(html);
     await hydrateIslands(manifest, () => React.createElement('span', null, 'x'), customDoc);
     expect(hydrateRoot).not.toHaveBeenCalled();
@@ -246,7 +246,7 @@ describe('hydrateIslands: custom IslandQueryContext doc parameter', () => {
       markIsland(React.createElement('span', null, 'B'), 'ctx-b'),
       markIsland(React.createElement('span', null, 'C'), 'ctx-c'),
     );
-    const html = staticRender(tree);
+    const html = renderBodyFragment([tree]);
     const manifest = collectIslands(html);
     await hydrateIslands(manifest, () => React.createElement('span', null, 'x'), customDoc);
     expect(customDoc.querySelector).toHaveBeenCalledTimes(3);

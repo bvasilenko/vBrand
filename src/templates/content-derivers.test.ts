@@ -10,6 +10,7 @@ import {
   deriveFooterContent,
   deriveTestimonialContent,
   deriveThemeOverride,
+  deriveThemeCssVars,
   type BlockDensity,
 } from './content-derivers.js';
 import type { Density } from '../composition/spec.js';
@@ -230,50 +231,140 @@ describe('deriveThemeOverride - CSS variable mapping', () => {
     expect(deriveThemeOverride(brand)).toEqual({});
   });
 
-  it('maps color.primary to --color-primary', () => {
+  it('maps color.primary to color-primary', () => {
     const result = deriveThemeOverride(MINIMAL_BRAND);
-    expect(result['--color-primary']).toBe(MINIMAL_BRAND.tokens.color['primary']);
+    expect(result['color-primary']).toBe(MINIMAL_BRAND.tokens.color['primary']);
   });
 
-  it('maps color.secondary to --color-secondary when present', () => {
+  it('maps color.secondary to color-secondary when present', () => {
     const result = deriveThemeOverride(RICH_BRAND);
-    expect(result['--color-secondary']).toBe(RICH_BRAND.tokens.color['secondary']);
+    expect(result['color-secondary']).toBe(RICH_BRAND.tokens.color['secondary']);
   });
 
-  it('does not include --color-secondary when secondary token is absent', () => {
-    expect(deriveThemeOverride(MINIMAL_BRAND)).not.toHaveProperty('--color-secondary');
+  it('does not include color-secondary when secondary token is absent', () => {
+    expect(deriveThemeOverride(MINIMAL_BRAND)).not.toHaveProperty('color-secondary');
   });
 
-  it('maps type.body to --font-body when present', () => {
+  it('maps type.body to font-body when present', () => {
     const result = deriveThemeOverride(RICH_BRAND);
-    expect(result['--font-body']).toBe(RICH_BRAND.tokens.type['body']);
+    expect(result['font-body']).toBe(RICH_BRAND.tokens.type['body']);
   });
 
-  it('maps type.heading to --font-heading when present', () => {
+  it('maps type.heading to font-heading when present', () => {
     const result = deriveThemeOverride(RICH_BRAND);
-    expect(result['--font-heading']).toBe(RICH_BRAND.tokens.type['heading']);
+    expect(result['font-heading']).toBe(RICH_BRAND.tokens.type['heading']);
   });
 
-  it('does not include --font-body or --font-heading when type tokens are absent', () => {
+  it('does not include font-body or font-heading when type tokens are absent', () => {
     const result = deriveThemeOverride(MINIMAL_BRAND);
-    expect(result).not.toHaveProperty('--font-body');
-    expect(result).not.toHaveProperty('--font-heading');
+    expect(result).not.toHaveProperty('font-body');
+    expect(result).not.toHaveProperty('font-heading');
   });
 
   it('unmapped token keys (e.g. accent) do not appear in output', () => {
     const result = deriveThemeOverride(RICH_BRAND);
-    expect(result).not.toHaveProperty('--color-accent');
+    expect(result).not.toHaveProperty('color-accent');
   });
 
   it('result keys are exactly the four known CSS variable names (when all tokens present)', () => {
     const result = deriveThemeOverride(RICH_BRAND);
     expect(Object.keys(result).sort()).toEqual(
+      ['color-primary', 'color-secondary', 'font-body', 'font-heading'].sort(),
+    );
+  });
+
+  it('result keys contain exactly [color-primary] when only the primary token is present', () => {
+    const result = deriveThemeOverride(MINIMAL_BRAND);
+    expect(Object.keys(result)).toEqual(['color-primary']);
+  });
+
+  it('does not include color-primary when primary token is absent', () => {
+    const brand = { ...MINIMAL_BRAND, tokens: { color: { secondary: '#0ea5e9' }, type: {} } } as VbrandType;
+    expect(deriveThemeOverride(brand)).not.toHaveProperty('color-primary');
+  });
+
+  it('excludes a token whose value is an empty string (falsy check treats it as absent)', () => {
+    const brand = { ...MINIMAL_BRAND, tokens: { color: { primary: '' }, type: {} } } as VbrandType;
+    expect(deriveThemeOverride(brand)).not.toHaveProperty('color-primary');
+    expect(Object.keys(deriveThemeOverride(brand))).toHaveLength(0);
+  });
+});
+
+describe('deriveThemeCssVars - CSS variable mapping', () => {
+  it('returns empty object when no known token keys are present', () => {
+    const brand = { ...MINIMAL_BRAND, tokens: { color: {}, type: {} } } as VbrandType;
+    expect(deriveThemeCssVars(brand)).toEqual({});
+  });
+
+  it('maps color.primary to --color-primary', () => {
+    const result = deriveThemeCssVars(MINIMAL_BRAND);
+    expect(result['--color-primary']).toBe(MINIMAL_BRAND.tokens.color['primary']);
+  });
+
+  it('maps color.secondary to --color-secondary when present', () => {
+    const result = deriveThemeCssVars(RICH_BRAND);
+    expect(result['--color-secondary']).toBe(RICH_BRAND.tokens.color['secondary']);
+  });
+
+  it('does not include --color-secondary when secondary token is absent', () => {
+    expect(deriveThemeCssVars(MINIMAL_BRAND)).not.toHaveProperty('--color-secondary');
+  });
+
+  it('maps type.body to --font-body when present', () => {
+    const result = deriveThemeCssVars(RICH_BRAND);
+    expect(result['--font-body']).toBe(RICH_BRAND.tokens.type['body']);
+  });
+
+  it('maps type.heading to --font-heading when present', () => {
+    const result = deriveThemeCssVars(RICH_BRAND);
+    expect(result['--font-heading']).toBe(RICH_BRAND.tokens.type['heading']);
+  });
+
+  it('does not include --font-body or --font-heading when type tokens are absent', () => {
+    const result = deriveThemeCssVars(MINIMAL_BRAND);
+    expect(result).not.toHaveProperty('--font-body');
+    expect(result).not.toHaveProperty('--font-heading');
+  });
+
+  it('unmapped token keys such as accent do not appear in output', () => {
+    expect(deriveThemeCssVars(RICH_BRAND)).not.toHaveProperty('--color-accent');
+  });
+
+  it('result keys are exactly the four CSS variable names when all tokens present', () => {
+    const result = deriveThemeCssVars(RICH_BRAND);
+    expect(Object.keys(result).sort()).toEqual(
       ['--color-primary', '--color-secondary', '--font-body', '--font-heading'].sort(),
     );
   });
 
-  it('result keys are exactly --color-primary when only primary token is present', () => {
-    const result = deriveThemeOverride(MINIMAL_BRAND);
+  it('result keys contain exactly [--color-primary] when only the primary token is present', () => {
+    const result = deriveThemeCssVars(MINIMAL_BRAND);
     expect(Object.keys(result)).toEqual(['--color-primary']);
+  });
+
+  it('does not include --color-primary when primary token is absent', () => {
+    const brand = { ...MINIMAL_BRAND, tokens: { color: { secondary: '#0ea5e9' }, type: {} } } as VbrandType;
+    expect(deriveThemeCssVars(brand)).not.toHaveProperty('--color-primary');
+  });
+
+  it('every output key starts with -- and contains no triple-hyphen prefix', () => {
+    const result = deriveThemeCssVars(RICH_BRAND);
+    for (const key of Object.keys(result)) {
+      expect(key.startsWith('--')).toBe(true);
+      expect(key.startsWith('---')).toBe(false);
+    }
+  });
+
+  it('all output values are non-empty strings', () => {
+    for (const value of Object.values(deriveThemeCssVars(RICH_BRAND))) {
+      expect(typeof value).toBe('string');
+      expect(value.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('excludes a CSS var whose source token value is an empty string (falsy check treats it as absent)', () => {
+    const brand = { ...MINIMAL_BRAND, tokens: { color: { primary: '' }, type: {} } } as VbrandType;
+    expect(deriveThemeCssVars(brand)).not.toHaveProperty('--color-primary');
+    expect(Object.keys(deriveThemeCssVars(brand))).toHaveLength(0);
   });
 });

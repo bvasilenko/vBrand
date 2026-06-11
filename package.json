@@ -1,6 +1,6 @@
 {
   "name": "@booga/vbrand",
-  "version": "0.4.0-alpha.4",
+  "version": "0.4.0-alpha.4.2",
   "description": "Active brand-operations layer: pull brand surfaces, fuse into canonical schema, emit deterministic assets, audit for drift, publish portable bundles.",
   "type": "module",
   "bin": {
@@ -34,6 +34,10 @@
     "./interactivity": {
       "import": "./dist/interactivity.js",
       "types": "./dist/interactivity.d.ts"
+    },
+    "./ssr": {
+      "import": "./dist/ssr.js",
+      "types": "./dist/ssr.d.ts"
     }
   },
   "main": "./dist/index.js",
@@ -45,12 +49,13 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "node scripts/build-tailwind-bundle.mjs && tsup && node scripts/check-no-triple-hyphen.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests --max-warnings 0",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
-    "test:e2e": "playwright test --config examples/demo/playwright.config.ts"
+    "test:e2e": "playwright test --config examples/demo/playwright.config.ts",
+    "eye-test:grid": "node scripts/eye-test-screenshot-grid.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

@@ -94,4 +94,15 @@ export default defineConfig([
       options.jsx = 'automatic';
     },
   },
+  {
+    entry: { ssr: 'src/ssr/index.ts' },
+    format: ['esm'],
+    dts: true,
+    sourcemap: true,
+    target: 'es2022',
+    external: [...REACT_EXTERNALS],
+    esbuildOptions(options) {
+      options.jsx = 'automatic';
+    },
+  },
 ]);

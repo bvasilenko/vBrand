@@ -17,6 +17,7 @@ import {
   deriveThemeOverride,
 } from './content-derivers.js';
 import { applyContentOverride } from '../content/apply.js';
+import { markIsland } from '../interactivity/islands.js';
 
 const SECTION_IDS = ['hero', 'features', 'cta', 'footer'] as const;
 type LandingSectionId = (typeof SECTION_IDS)[number];
@@ -56,11 +57,11 @@ function renderSection(
   const d = density as 'compact' | 'regular' | 'spacious';
   switch (id) {
     case 'hero':
-      return <HeroSplit key="hero" content={applyContentOverride(deriveHeroContent(brand, d), content, 'landing.hero')} theme={theme} />;
+      return markIsland(<HeroSplit content={applyContentOverride(deriveHeroContent(brand, d), content, 'landing.hero')} theme={theme} />, 'landing.hero');
     case 'features':
       return <FeaturesGrid key="features" content={applyContentOverride(deriveFeaturesContent(brand, d), content, 'landing.features')} theme={theme} />;
     case 'cta':
-      return <CtaCentered key="cta" content={applyContentOverride(deriveCtaContent(brand, d), content, 'landing.cta')} theme={theme} />;
+      return markIsland(<CtaCentered content={applyContentOverride(deriveCtaContent(brand, d), content, 'landing.cta')} theme={theme} />, 'landing.cta');
     case 'footer':
       return <FooterSplit key="footer" content={applyContentOverride(deriveFooterContent(brand, d), content, 'landing.footer')} theme={theme} />;
   }

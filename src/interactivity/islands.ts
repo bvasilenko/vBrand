@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
 import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 export interface IslandEntry {
   readonly id: string;
@@ -10,12 +11,48 @@ export interface IslandEntry {
 
 export type IslandManifest = readonly IslandEntry[];
 
+export type IslandRegistry = Readonly<Record<string, React.ReactNode>>;
+
 export interface IslandQueryContext {
   querySelector: (selector: string) => Element | null;
 }
 
+let _captureRegistry: Map<string, React.ReactNode> | null = null;
+
+interface IslandMarkerProps {
+  id: string;
+  children?: React.ReactNode;
+}
+
+function IslandMarker({ id, children }: IslandMarkerProps): React.ReactElement {
+  _captureRegistry?.set(id, children);
+  return React.createElement('div', { 'data-island': id }, children);
+}
+
 export function markIsland(node: React.ReactNode, id: string): React.ReactElement {
-  return React.createElement('div', { 'data-island': id }, node);
+  _captureRegistry?.set(id, node);
+  return React.createElement(IslandMarker, { id, key: id }, node);
+}
+
+export function withIslandCapture<T>(
+  fn: () => T,
+): { result: T; getIslandComponent: (id: string) => React.ReactNode; registry: IslandRegistry } {
+  _captureRegistry = new Map();
+  try {
+    const result = fn();
+    const snapshot = new Map(_captureRegistry);
+    const registry = Object.fromEntries(snapshot) as IslandRegistry;
+    return { result, getIslandComponent: (id) => snapshot.get(id) ?? null, registry };
+  } finally {
+    _captureRegistry = null;
+  }
+}
+
+export function buildIslandRegistry(tree: React.ReactNode): IslandRegistry {
+  const { registry } = withIslandCapture(() =>
+    renderToStaticMarkup(tree as React.ReactElement),
+  );
+  return registry;
 }
 
 export function collectIslands(html: string): IslandManifest {

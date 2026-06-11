@@ -12,6 +12,8 @@ import { staticRender, hybridRender, hydrateIslands } from '@booga/vbrand/intera
 import type { IslandManifest } from '@booga/vbrand/interactivity';
 import type { TemplateId, InteractivityMode } from './router';
 
+// allow-same-origin is required so hydrateIslands can access contentDocument from the parent window.
+// Removing this attribute breaks hydration. Cross-origin iframes cannot use this architecture.
 const RENDERED_IFRAME_SANDBOX = 'allow-same-origin' as const;
 
 interface TemplateViewProps {
@@ -70,7 +72,7 @@ export function TemplateView({ brand, templateId, mode }: TemplateViewProps) {
         onChange={setComposition}
         onReset={handleReset}
       />
-      <RenderArea tree={tree} mode={mode} />
+      <RenderArea tree={tree} mode={mode} brand={brand} />
       <ContentEditor
         brand={brand}
         templateId={templateId}
@@ -85,16 +87,17 @@ export function TemplateView({ brand, templateId, mode }: TemplateViewProps) {
 interface RenderAreaProps {
   tree: React.ReactElement;
   mode: InteractivityMode;
+  brand: VbrandType;
 }
 
-function RenderArea({ tree, mode }: RenderAreaProps) {
+function RenderArea({ tree, mode, brand }: RenderAreaProps) {
   if (mode === 'static') {
-    const html = staticRender(tree);
+    const srcDoc = staticRender({ brand, sections: [tree] });
     return (
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
         <ModeBadge mode="static" islandCount={0} />
         <iframe
-          srcDoc={html}
+          srcDoc={srcDoc}
           sandbox={RENDERED_IFRAME_SANDBOX}
           style={{ flex: 1, border: 'none', width: '100%' }}
           title="static render"
@@ -104,7 +107,7 @@ function RenderArea({ tree, mode }: RenderAreaProps) {
   }
 
   if (mode === 'hybrid') {
-    return <HybridRenderArea tree={tree} />;
+    return <HybridRenderArea tree={tree} brand={brand} />;
   }
 
   return (
@@ -117,17 +120,19 @@ function RenderArea({ tree, mode }: RenderAreaProps) {
   );
 }
 
-function HybridRenderArea({ tree }: { tree: React.ReactElement }) {
+function HybridRenderArea({ tree, brand }: { tree: React.ReactElement; brand: VbrandType }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const islandsRef = useRef<IslandManifest>([]);
+  const getIslandComponentRef = useRef<(id: string) => React.ReactNode>(() => null);
 
-  const { html, islands } = hybridRender(tree);
+  const { html, islands, getIslandComponent } = hybridRender({ brand, sections: [tree] });
   islandsRef.current = islands;
+  getIslandComponentRef.current = getIslandComponent;
 
   function handleLoad() {
     const doc = iframeRef.current?.contentDocument;
     if (!doc || islandsRef.current.length === 0) return;
-    void hydrateIslands(islandsRef.current, () => null, doc);
+    void hydrateIslands(islandsRef.current, getIslandComponentRef.current, doc);
   }
 
   return (

@@ -12,6 +12,7 @@ import {
   deriveDashboardGridContent,
 } from './content-derivers.js';
 import { applyContentOverride } from '../content/apply.js';
+import { markIsland } from '../interactivity/islands.js';
 
 const SECTION_IDS = ['sidebar', 'stats', 'grid'] as const;
 type DashboardSectionId = (typeof SECTION_IDS)[number];
@@ -53,7 +54,7 @@ export const dashboardTemplate: AppTypeTemplate = {
       >
         {hasSidebar && <DashboardSidebar content={sidebarContent} />}
         <Box as="main" style={{ flex: 1, padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {hasStats && <StatsRow content={statsContent} />}
+          {hasStats && markIsland(<StatsRow content={statsContent} />, 'dashboard.stats')}
           {hasGrid && <ContentGrid brand={brand} content={gridContent} />}
         </Box>
       </Box>

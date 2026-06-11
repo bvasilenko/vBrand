@@ -15,9 +15,7 @@ export function DataView({ brand, sourceLabel, meta }: DataViewProps) {
   const colorCount = Object.keys(brand.tokens.color).length;
   const typeCount = Object.keys(brand.tokens.type).length;
   const faviconSource = brand.assets.favicon.source;
-  // Render the favicon as an actual <img> when the source is a relative
-  // bundled-asset path (no scheme). External URLs render as code-text only
-  // because cross-origin fetch can fail in the hosted-demo context.
+  // cross-origin fetch fails on gh-pages for external favicon URLs
   const faviconIsBundled = meta.faviconBundled && !/^[a-z]+:\/\//i.test(faviconSource);
 
   return (
@@ -28,7 +26,10 @@ export function DataView({ brand, sourceLabel, meta }: DataViewProps) {
           <Pill tone="ok">VbrandSchema valid</Pill>
           <Pill tone="info">{colorCount} color tokens</Pill>
           <Pill tone="info">{typeCount} type tokens</Pill>
-          {meta.colorFallbackActive && (
+          {meta.githubColorFallback && (
+            <Pill tone="warn">GitHub source: no brand color derived; using fallback</Pill>
+          )}
+          {meta.colorFallbackActive && !meta.githubColorFallback && (
             <Pill tone="warn">color fallback active</Pill>
           )}
           {meta.faviconBundled && (
