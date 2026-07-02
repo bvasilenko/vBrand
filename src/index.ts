@@ -119,3 +119,39 @@ export type {
   DeployHistoryEntry,
   PrepareInput,
 } from './lib/deploy/types.js';
+
+export {
+  STACK_RUNTIME_REGISTRY,
+  getStackRuntime,
+  viteRuntime,
+  nextRuntime,
+  astroRuntime,
+  DEFAULT_STACK,
+  parseStack,
+  StackNameSchema,
+} from './stacks/index.js';
+export type { StackRuntime, StackName } from './stacks/index.js';
+
+export {
+  CMS_SUBSTRATE_REGISTRY,
+  getCmsSubstrate,
+  vbrandStandaloneCms,
+  payloadCms,
+  sanityCms,
+  strapiCms,
+  DEFAULT_CMS,
+  parseCms,
+  CmsNameSchema,
+} from './cms/index.js';
+export type { CmsSubstrateAdapter, CmsName, ContentTree, SchemaTree } from './cms/index.js';
+
+export {
+  DEPLOY_TARGET_REGISTRY,
+  getDeployTarget,
+  ghPagesTarget,
+  DEFAULT_DEPLOY_TARGET,
+  parseDeployTarget,
+  DeployTargetNameSchema,
+  DECOUPLED_FOR_LATER_MESSAGE,
+} from './deploy/index.js';
+export type { DeploymentTargetAdapter, DeployBundle, DeployBundleFile, DeployResult, DeployTargetName } from './deploy/index.js';

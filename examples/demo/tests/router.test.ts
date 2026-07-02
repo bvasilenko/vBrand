@@ -9,7 +9,11 @@ import {
   brandParamToString,
   type BrandParams,
   type InteractivityMode,
+  type StackName,
+  type CmsName,
   DEFAULT_MODE,
+  DEFAULT_STACK,
+  DEFAULT_CMS,
   type TemplateId,
 } from '../src/router.js';
 
@@ -347,14 +351,13 @@ describe('buildViewPath - constructs correct URL path for each view', () => {
 });
 
 const ALL_MODES: readonly InteractivityMode[] = ['static', 'hybrid', 'spa'];
+const ALL_STACKS: readonly StackName[] = ['vite', 'next', 'astro'];
+const ALL_CMS: readonly CmsName[] = ['vbrand-standalone', 'payload', 'sanity', 'strapi'];
+const STACK_DEFAULT_MODES: Record<StackName, InteractivityMode> = { vite: 'spa', next: 'hybrid', astro: 'static' };
 
 describe('parseRoute - mode field parsing', () => {
   it.each(ALL_MODES)('mode=%s is parsed as InteractivityMode %s', (mode) => {
     expect(parseRoute(`app=landing&mode=${mode}`).mode).toBe(mode);
-  });
-
-  it('absent mode param falls back to DEFAULT_MODE', () => {
-    expect(parseRoute('app=landing').mode).toBe(DEFAULT_MODE);
   });
 
   it.each(['ssr', '', 'SSR', 'Static'] as const)(
@@ -379,31 +382,70 @@ describe('parseRoute - mode field parsing', () => {
   });
 });
 
-describe('buildSearchString - mode param encoding', () => {
-  it('mode=spa is omitted from output (spa is DEFAULT_MODE, clean URL convention)', () => {
-    expect(new URLSearchParams(buildSearchString('fixture:stripe', 'landing', 'spa')).get('mode')).toBeNull();
+describe('parseRoute - mode derives from stack default when mode param is absent', () => {
+  it.each(ALL_STACKS)(
+    'absent mode + stack=%s yields the declared stack default mode',
+    (stack) => {
+      expect(parseRoute(`app=landing&stack=${stack}`).mode).toBe(STACK_DEFAULT_MODES[stack]);
+    },
+  );
+
+  it('absent mode and absent stack param yields the DEFAULT_STACK default mode', () => {
+    expect(parseRoute('app=landing').mode).toBe(STACK_DEFAULT_MODES[DEFAULT_STACK]);
   });
 
+  it.each(ALL_STACKS.flatMap((stack) => ALL_MODES.map((mode) => [stack, mode] as const)))(
+    'stack=%s with explicit mode=%s is always honoured regardless of stack default',
+    (stack, mode) => {
+      expect(parseRoute(`app=landing&stack=${stack}&mode=${mode}`).mode).toBe(mode);
+    },
+  );
+
+  it.each(ALL_STACKS)(
+    'unrecognized mode value on stack=%s falls back to DEFAULT_MODE',
+    (stack) => {
+      expect(parseRoute(`app=landing&stack=${stack}&mode=ssr`).mode).toBe(DEFAULT_MODE);
+    },
+  );
+});
+
+describe('buildSearchString - mode param encoding', () => {
   it('omitting the mode arg produces the same string as passing DEFAULT_MODE explicitly', () => {
     expect(buildSearchString('fixture:stripe', 'landing')).toBe(
       buildSearchString('fixture:stripe', 'landing', DEFAULT_MODE),
     );
   });
 
-  it('mode=static is encoded as mode=static in the query string', () => {
-    expect(new URLSearchParams(buildSearchString('fixture:stripe', 'landing', 'static')).get('mode')).toBe('static');
-  });
+  it.each(ALL_STACKS)(
+    'stack default mode for stack=%s is omitted from the query string (clean URL convention)',
+    (stack) => {
+      const params = new URLSearchParams(
+        buildSearchString('fixture:stripe', 'landing', STACK_DEFAULT_MODES[stack], stack),
+      );
+      expect(params.get('mode')).toBeNull();
+    },
+  );
 
-  it('mode=hybrid is encoded as mode=hybrid in the query string', () => {
-    expect(new URLSearchParams(buildSearchString('fixture:stripe', 'landing', 'hybrid')).get('mode')).toBe('hybrid');
-  });
+  it.each(
+    ALL_STACKS.flatMap((stack) =>
+      ALL_MODES.filter((mode) => mode !== STACK_DEFAULT_MODES[stack]).map((mode) => [stack, mode] as const),
+    ),
+  )(
+    'non-default mode=%s on stack=%s is encoded in the query string',
+    (stack, mode) => {
+      const params = new URLSearchParams(buildSearchString('fixture:stripe', 'landing', mode, stack));
+      expect(params.get('mode')).toBe(mode);
+    },
+  );
 
-  it.each(ALL_MODES)('mode=%s round-trips through buildSearchString -> parseRoute', (mode) => {
-    const route = parseRoute(buildSearchString('fixture:vercel', 'docs', mode));
-    expect(route.mode).toBe(mode);
-    expect(route.templateId).toBe('docs');
-    expect(route.brandParams).toEqual({ type: 'fixture', handle: 'vercel' });
-  });
+  it.each(ALL_STACKS.flatMap((stack) => ALL_MODES.map((mode) => [stack, mode] as const)))(
+    'mode=%s on stack=%s survives buildSearchString → parseRoute round-trip',
+    (stack, mode) => {
+      const route = parseRoute(buildSearchString('fixture:vercel', 'docs', mode, stack));
+      expect(route.mode).toBe(mode);
+      expect(route.stack).toBe(stack);
+    },
+  );
 
   it.each(ALL_TEMPLATE_IDS)(
     'mode=static with template=%s round-trips correctly for all templates',
@@ -411,6 +453,167 @@ describe('buildSearchString - mode param encoding', () => {
       const route = parseRoute(buildSearchString('fixture:stripe', templateId, 'static'));
       expect(route.mode).toBe('static');
       expect(route.templateId).toBe(templateId);
+    },
+  );
+});
+
+describe('parseRoute - stack param parsing', () => {
+  it.each(ALL_STACKS)('stack=%s is parsed as StackName %s', (stack) => {
+    expect(parseRoute(`app=landing&stack=${stack}`).stack).toBe(stack);
+  });
+
+  it('absent stack param produces DEFAULT_STACK', () => {
+    expect(parseRoute('app=landing').stack).toBe(DEFAULT_STACK);
+  });
+
+  it.each(['remix', '', 'VITE', 'Next'] as const)(
+    'unrecognized or wrong-case stack value "%s" falls back to DEFAULT_STACK',
+    (bad) => {
+      expect(parseRoute(`app=landing&stack=${bad}`).stack).toBe(DEFAULT_STACK);
+    },
+  );
+
+  it('stack field is independent of brand, template, mode, and cms params', () => {
+    const route = parseRoute('brand=fixture:stripe&app=marketing&mode=static&stack=astro&cms=sanity');
+    expect(route.stack).toBe('astro');
+    expect(route.cms).toBe('sanity');
+    expect(route.mode).toBe('static');
+    expect(route.templateId).toBe('marketing');
+  });
+
+  it('all three stack values survive parseRoute round-trip via buildSearchString', () => {
+    for (const stack of ALL_STACKS) {
+      const search = buildSearchString('fixture:stripe', 'landing', undefined, stack);
+      expect(parseRoute(search).stack).toBe(stack);
+    }
+  });
+});
+
+describe('parseRoute - cms param parsing', () => {
+  it.each(ALL_CMS)('cms=%s is parsed as CmsName %s', (cms) => {
+    expect(parseRoute(`app=landing&cms=${cms}`).cms).toBe(cms);
+  });
+
+  it('absent cms param produces DEFAULT_CMS', () => {
+    expect(parseRoute('app=landing').cms).toBe(DEFAULT_CMS);
+  });
+
+  it.each(['wordpress', '', 'SANITY', 'Payload'] as const)(
+    'unrecognized or wrong-case cms value "%s" falls back to DEFAULT_CMS',
+    (bad) => {
+      expect(parseRoute(`app=landing&cms=${bad}`).cms).toBe(DEFAULT_CMS);
+    },
+  );
+
+  it('cms field is independent of brand, template, mode, and stack params', () => {
+    const route = parseRoute('brand=fixture:vercel&app=docs&mode=hybrid&stack=next&cms=payload');
+    expect(route.cms).toBe('payload');
+    expect(route.stack).toBe('next');
+    expect(route.mode).toBe('hybrid');
+    expect(route.templateId).toBe('docs');
+  });
+
+  it('all four CMS values survive parseRoute round-trip via buildSearchString', () => {
+    for (const cms of ALL_CMS) {
+      const search = buildSearchString('fixture:stripe', 'landing', undefined, undefined, cms);
+      expect(parseRoute(search).cms).toBe(cms);
+    }
+  });
+});
+
+describe('buildSearchString - stack and cms param encoding', () => {
+  it('stack=vite (DEFAULT_STACK) is omitted from output for clean URL convention', () => {
+    const params = new URLSearchParams(buildSearchString('fixture:stripe', 'landing', undefined, 'vite'));
+    expect(params.get('stack')).toBeNull();
+  });
+
+  it('stack=next is encoded as stack=next in the query string', () => {
+    const params = new URLSearchParams(buildSearchString('fixture:stripe', 'landing', undefined, 'next'));
+    expect(params.get('stack')).toBe('next');
+  });
+
+  it('stack=astro is encoded as stack=astro in the query string', () => {
+    const params = new URLSearchParams(buildSearchString('fixture:stripe', 'landing', undefined, 'astro'));
+    expect(params.get('stack')).toBe('astro');
+  });
+
+  it('cms=vbrand-standalone (DEFAULT_CMS) is omitted from output for clean URL convention', () => {
+    const params = new URLSearchParams(buildSearchString('fixture:stripe', 'landing', undefined, undefined, 'vbrand-standalone'));
+    expect(params.get('cms')).toBeNull();
+  });
+
+  it('cms=payload is encoded as cms=payload in the query string', () => {
+    const params = new URLSearchParams(buildSearchString('fixture:stripe', 'landing', undefined, undefined, 'payload'));
+    expect(params.get('cms')).toBe('payload');
+  });
+
+  it('cms=sanity is encoded as cms=sanity in the query string', () => {
+    const params = new URLSearchParams(buildSearchString('fixture:stripe', 'landing', undefined, undefined, 'sanity'));
+    expect(params.get('cms')).toBe('sanity');
+  });
+
+  it('cms=strapi is encoded as cms=strapi in the query string', () => {
+    const params = new URLSearchParams(buildSearchString('fixture:stripe', 'landing', undefined, undefined, 'strapi'));
+    expect(params.get('cms')).toBe('strapi');
+  });
+
+  it('omitting stack arg produces the same string as passing DEFAULT_STACK explicitly', () => {
+    expect(buildSearchString('fixture:stripe', 'landing', undefined, 'vite')).toBe(
+      buildSearchString('fixture:stripe', 'landing'),
+    );
+  });
+
+  it('omitting cms arg produces the same string as passing DEFAULT_CMS explicitly', () => {
+    expect(buildSearchString('fixture:stripe', 'landing', undefined, undefined, 'vbrand-standalone')).toBe(
+      buildSearchString('fixture:stripe', 'landing'),
+    );
+  });
+
+  it.each(ALL_STACKS)('stack=%s round-trips through buildSearchString -> parseRoute', (stack) => {
+    const route = parseRoute(buildSearchString('fixture:vercel', 'docs', undefined, stack));
+    expect(route.stack).toBe(stack);
+    expect(route.templateId).toBe('docs');
+  });
+
+  it.each(ALL_CMS)('cms=%s round-trips through buildSearchString -> parseRoute', (cms) => {
+    const route = parseRoute(buildSearchString('fixture:vercel', 'docs', undefined, undefined, cms));
+    expect(route.cms).toBe(cms);
+    expect(route.templateId).toBe('docs');
+  });
+});
+
+describe('parseRoute + buildSearchString - 5-axis URL round-trip', () => {
+  it('all five axes survive a full round-trip through buildSearchString -> parseRoute', () => {
+    const search = buildSearchString('fixture:stripe', 'marketing', 'static', 'astro', 'sanity');
+    const route = parseRoute(search);
+    expect(route.brandParams).toEqual({ type: 'fixture', handle: 'stripe' });
+    expect(route.templateId).toBe('marketing');
+    expect(route.mode).toBe('static');
+    expect(route.stack).toBe('astro');
+    expect(route.cms).toBe('sanity');
+  });
+
+  it('default values for all three optional axes produce the shortest possible URL', () => {
+    const withDefaults = buildSearchString('fixture:stripe', 'landing', DEFAULT_MODE, DEFAULT_STACK, DEFAULT_CMS);
+    const withoutOptionals = buildSearchString('fixture:stripe', 'landing');
+    expect(withDefaults).toBe(withoutOptionals);
+  });
+
+  it('non-default stack and cms each add exactly one parameter to the query string', () => {
+    const base = new URLSearchParams(buildSearchString('fixture:stripe', 'landing'));
+    const extended = new URLSearchParams(buildSearchString('fixture:stripe', 'landing', undefined, 'next', 'sanity'));
+    expect(extended.size - base.size).toBe(2);
+    expect(extended.get('stack')).toBe('next');
+    expect(extended.get('cms')).toBe('sanity');
+  });
+
+  it.each(ALL_STACKS.flatMap((stack) => ALL_CMS.map((cms) => [stack, cms] as const)))(
+    'stack=%s cms=%s round-trips without loss for all 12 combinations',
+    (stack, cms) => {
+      const search = buildSearchString('fixture:github', 'dashboard', 'hybrid', stack, cms);
+      const route = parseRoute(search);
+      expect(route.stack).toBe(stack);
+      expect(route.cms).toBe(cms);
     },
   );
 });

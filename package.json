@@ -1,6 +1,6 @@
 {
   "name": "@booga/vbrand",
-  "version": "0.4.0-alpha.4.2.3",
+  "version": "0.4.0-alpha.5",
   "description": "Active brand-operations layer: pull brand surfaces, fuse into canonical schema, emit deterministic assets, audit for drift, publish portable bundles.",
   "type": "module",
   "bin": {
@@ -38,6 +38,22 @@
     "./ssr": {
       "import": "./dist/ssr.js",
       "types": "./dist/ssr.d.ts"
+    },
+    "./stacks": {
+      "import": "./dist/stacks.js",
+      "types": "./dist/stacks.d.ts"
+    },
+    "./cms": {
+      "import": "./dist/cms.js",
+      "types": "./dist/cms.d.ts"
+    },
+    "./deploy": {
+      "import": "./dist/deploy.js",
+      "types": "./dist/deploy.d.ts"
+    },
+    "./deploy/metadata": {
+      "import": "./dist/deploy-metadata.js",
+      "types": "./dist/deploy-metadata.d.ts"
     }
   },
   "main": "./dist/index.js",
@@ -49,10 +65,10 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "node scripts/build-tailwind-bundle.mjs && tsup && node scripts/check-no-triple-hyphen.mjs",
+    "build": "node scripts/build-tailwind-bundle.mjs && node scripts/run-tsup.cjs && node scripts/build-stack-artefacts.mjs && node scripts/generate-cms-fixtures.mjs && node scripts/check-no-triple-hyphen.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests --max-warnings 0",
-    "test": "vitest run --coverage",
+    "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test --config examples/demo/playwright.config.ts",
     "eye-test:grid": "node scripts/eye-test-screenshot-grid.mjs"

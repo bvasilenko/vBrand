@@ -18,6 +18,7 @@ vbrand/.cache/
 .playwright-cli/
 .vbrand/
 examples/demo/test-results/
+/test-results/
 
 src/ssr/tailwind.css
 src/ssr/tailwind-bundle.ts

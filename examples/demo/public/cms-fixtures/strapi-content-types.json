@@ -1,0 +1,30 @@
+{
+  "contentTypes": [
+    {
+      "uid": "api::page.page",
+      "attributes": [
+        "landing.hero.heading",
+        "landing.hero.eyebrow",
+        "landing.hero.description",
+        "landing.hero.primaryCta.label",
+        "landing.features.heading",
+        "landing.cta.heading",
+        "landing.cta.description",
+        "landing.cta.primaryCta.label",
+        "landing.footer.copyright",
+        "marketing.hero.heading",
+        "marketing.hero.eyebrow",
+        "marketing.hero.description",
+        "marketing.testimonials.heading",
+        "marketing.pricing.heading",
+        "marketing.cta.primaryCta.label",
+        "docs.sidebar.heading",
+        "docs.article.title",
+        "docs.toc.heading",
+        "dashboard.sidebar.heading",
+        "dashboard.stats.heading",
+        "dashboard.grid.heading"
+      ]
+    }
+  ]
+}

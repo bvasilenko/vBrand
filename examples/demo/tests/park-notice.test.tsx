@@ -1,168 +1,75 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import React, { act } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
-import { ParkNotice } from '../src/park-notice.js';
+import { createRoot } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { ParkNotice } from '../src/park-notice';
 
-const SESSION_KEY = 'vbrand-park-notice-dismissed';
-
-const QUEUED_AXIS_CASES = [
-  { param: 'stack', value: 'vite',   label: 'stack-runtime', iteration: 'iteration 3 queued' },
-  { param: 'cms',   value: 'vbrand', label: 'cms substrate', iteration: 'iteration 3 queued' },
-] as const;
-
-const SHIPPED_AXIS_PARAMS = ['mode', 'content'] as const;
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 let container: HTMLDivElement;
-let root: Root;
+let root: ReturnType<typeof createRoot>;
 
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
-  sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.clear();
 });
 
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
-  sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.clear();
 });
 
 function render(search: string) {
   act(() => root.render(React.createElement(ParkNotice, { search })));
 }
 
-function banner(): Element | null {
-  return container.querySelector('[role="banner"]');
-}
+const SHIPPED_AXIS_SEARCHES = [
+  '?stack=next',
+  '?cms=strapi',
+  '?stack=astro&cms=sanity&mode=static',
+] as const;
 
+const QUEUED_AXIS_CASES = [
+  ['?deploy=netlify', ['multi-deploy target selection']],
+  ['?stackPlugin=remix', ['expanded stack runtime plugins']],
+  ['?cmsLive=sanity', ['managed CMS live instances']],
+  ['?deploy=netlify&stackPlugin=remix', ['multi-deploy target selection', 'expanded stack runtime plugins']],
+] as const;
 
-describe('ParkNotice: visibility rules', () => {
-  it('renders nothing when no queued-axis params are present', () => {
-    render('?brand=fixture:stripe');
-    expect(banner()).toBeNull();
+describe('ParkNotice: alpha.5 shipped axes', () => {
+  it.each(SHIPPED_AXIS_SEARCHES)('does not warn for shipped axis params: %s', (search) => {
+    render(search);
+    expect(container.querySelector('[role="banner"]')).toBeNull();
   });
 
-  it('renders nothing when the search string is completely empty', () => {
-    render('');
-    expect(banner()).toBeNull();
+  it.each(QUEUED_AXIS_CASES)('keeps future queued-axis notices available: %s', (search, labels) => {
+    render(search);
+    const banner = container.querySelector('[role="banner"]');
+    for (const label of labels) expect(banner?.textContent).toContain(label);
+    expect(banner?.textContent).toContain('vBrand 0.5.0');
   });
 
-  it('renders nothing when only unrecognised params are present', () => {
-    render('?foo=bar&baz=1');
-    expect(banner()).toBeNull();
-  });
-
-  it.each(QUEUED_AXIS_CASES)(
-    '?$param=$value: banner is rendered for queued axis',
-    ({ param, value }) => {
-      render(`?${param}=${value}`);
-      expect(banner()).not.toBeNull();
-    },
-  );
-
-  it('renders a banner when a queued-axis param is present with an empty value', () => {
-    render('?stack=');
-    expect(banner()).not.toBeNull();
-  });
-
-  it('renders exactly one banner element when multiple queued-axis params are present', () => {
-    render('?stack=vite&cms=vbrand');
-    expect(container.querySelectorAll('[role="banner"]').length).toBe(1);
-  });
-
-  it.each(SHIPPED_AXIS_PARAMS)(
-    '?%s: shipped axis does not trigger the banner',
-    (param) => {
-      render(`?${param}=anything`);
-      expect(banner()).toBeNull();
-    },
-  );
-
-  it('no banner when all present params are shipped axes', () => {
-    render('?mode=static&content=some.key:value');
-    expect(banner()).toBeNull();
-  });
-
-  it('banner renders when a queued-axis param accompanies a shipped-axis param', () => {
-    render('?stack=vite&mode=static');
-    expect(banner()).not.toBeNull();
-  });
-});
-
-
-describe('ParkNotice: axis label and iteration text', () => {
-  it.each(QUEUED_AXIS_CASES)(
-    '?$param: banner contains the axis label "$label"',
-    ({ param, value, label }) => {
-      render(`?${param}=${value}`);
-      expect(banner()!.textContent).toContain(label);
-    },
-  );
-
-  it.each(QUEUED_AXIS_CASES)(
-    '?$param: banner contains the iteration text "$iteration"',
-    ({ param, value, iteration }) => {
-      render(`?${param}=${value}`);
-      expect(banner()!.textContent).toContain(iteration);
-    },
-  );
-
-  it('banner listing two queued axes contains both labels', () => {
-    render('?stack=vite&cms=vbrand');
-    expect(banner()!.textContent).toContain('stack-runtime');
-    expect(banner()!.textContent).toContain('cms substrate');
-  });
-
-  it('banner with queued + shipped param includes the queued label but not the shipped label', () => {
-    render('?stack=vite&mode=static');
-    expect(banner()!.textContent).toContain('stack-runtime');
-    expect(banner()!.textContent).not.toContain('interactivity mode');
-  });
-
-  it('banner with queued + shipped param includes the queued label but not the other shipped label', () => {
-    render('?cms=vbrand&content=anything');
-    expect(banner()!.textContent).toContain('cms substrate');
-    expect(banner()!.textContent).not.toContain('content override');
-  });
-});
-
-
-describe('ParkNotice: dismiss behaviour', () => {
-  it('clicking dismiss removes the banner from the DOM', () => {
-    render('?stack=vite');
+  it.each(QUEUED_AXIS_CASES)('dismisses future queued-axis notices for the current session: %s', (search) => {
+    render(search);
     const dismiss = container.querySelector('[aria-label="Dismiss queued axes notice"]') as HTMLButtonElement;
     act(() => dismiss.click());
-    expect(banner()).toBeNull();
+    expect(container.querySelector('[role="banner"]')).toBeNull();
+    expect(sessionStorage.getItem('vbrand-park-notice-dismissed')).toBe('1');
   });
 
-  it('clicking dismiss writes the session flag', () => {
-    render('?stack=vite');
-    const dismiss = container.querySelector('[aria-label="Dismiss queued axes notice"]') as HTMLButtonElement;
-    act(() => dismiss.click());
-    expect(sessionStorage.getItem(SESSION_KEY)).toBe('1');
+  it.each(QUEUED_AXIS_CASES)('honors an existing queued-notice session dismissal: %s', (search) => {
+    sessionStorage.setItem('vbrand-park-notice-dismissed', '1');
+    render(search);
+    expect(container.querySelector('[role="banner"]')).toBeNull();
   });
 
-  it('banner does not render when session flag is already set before mount', () => {
-    sessionStorage.setItem(SESSION_KEY, '1');
-    render('?stack=vite');
-    expect(banner()).toBeNull();
-  });
-
-  it('session flag set before render suppresses banner for every queued-axis param', () => {
-    sessionStorage.setItem(SESSION_KEY, '1');
-    for (const { param, value } of QUEUED_AXIS_CASES) {
-      render(`?${param}=${value}`);
-      expect(banner()).toBeNull();
-    }
-  });
-
-  it('dismiss button has the expected aria-label for accessibility', () => {
-    render('?stack=vite');
-    const dismiss = container.querySelector('[aria-label="Dismiss queued axes notice"]');
-    expect(dismiss).not.toBeNull();
+  it.each(['', '?foo=bar', '?mode=spa&content=x'])('does not warn for unrelated params: %s', (search) => {
+    render(search);
+    expect(container.querySelector('[role="banner"]')).toBeNull();
   });
 });

@@ -48,8 +48,9 @@ test('compact chip click encodes density:compact into the composition hash', asy
   const rawHash = await page.evaluate(() => window.location.hash);
   const spec = await page.evaluate(
     (hash) => {
-      const encoded = hash.replace(/^#composition=/, '');
-      if (!encoded || encoded === hash) return null;
+      const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+      const encoded = params.get('composition');
+      if (!encoded) return null;
       try { return JSON.parse(atob(encoded)); } catch { return null; }
     },
     rawHash,

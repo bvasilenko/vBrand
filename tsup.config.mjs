@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'tsup';
+
+const { version: PACKAGE_VERSION } = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf-8'),
+);
 
 const REACT_EXTERNALS = [
   'react',
@@ -93,6 +98,43 @@ export default defineConfig([
     esbuildOptions(options) {
       options.jsx = 'automatic';
     },
+  },
+  {
+    entry: { stacks: 'src/stacks/index.ts' },
+    format: ['esm'],
+    dts: true,
+    sourcemap: true,
+    target: 'es2022',
+    external: [...REACT_EXTERNALS],
+    esbuildOptions(options) {
+      options.jsx = 'automatic';
+      options.define = { ...options.define, __VBRAND_VERSION__: JSON.stringify(PACKAGE_VERSION) };
+    },
+  },
+  {
+    entry: { cms: 'src/cms/index.ts' },
+    format: ['esm'],
+    dts: true,
+    sourcemap: true,
+    target: 'es2022',
+    external: ['@booga/vfixtures', 'zod'],
+  },
+  {
+    entry: { deploy: 'src/deploy/index.ts' },
+    format: ['esm'],
+    dts: true,
+    sourcemap: true,
+    target: 'es2022',
+    platform: 'node',
+  },
+  {
+    entry: { 'deploy-metadata': 'src/deploy/metadata.ts' },
+    format: ['esm'],
+    dts: true,
+    sourcemap: true,
+    target: 'es2022',
+    platform: 'browser',
+    external: ['zod'],
   },
   {
     entry: { ssr: 'src/ssr/index.ts' },
