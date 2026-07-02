@@ -21,6 +21,7 @@ export function App() {
   const base = viteBase();
   const route = parseRoute(window.location.search, window.location.pathname, base);
   const brandLabel = brandParamToString(route.brandParams);
+  const fixtureSlug = route.brandParams.type === 'fixture' ? route.brandParams.handle : undefined;
 
   const [brand, setBrand] = useState<VbrandType | null>(null);
   const [meta, setMeta] = useState<BrandMeta>(DEFAULT_META);
@@ -67,6 +68,8 @@ export function App() {
         currentBrand={brandLabel}
         currentTemplate={route.templateId}
         currentMode={route.mode}
+        currentStack={route.stack}
+        currentCms={route.cms}
         isLoading={isLoading}
         dataViewHref={buildViewPath('data', base) + window.location.search + window.location.hash}
         onDataViewNavigate={() => {
@@ -84,7 +87,7 @@ export function App() {
         {isLoading && <LoadingState label={brandLabel} />}
         {!isLoading && error && <ErrorState error={error} brandLabel={brandLabel} />}
         {!isLoading && !error && brand && activeTab === 'template' && (
-          <TemplateView brand={brand} templateId={route.templateId} mode={route.mode} />
+          <TemplateView brand={brand} templateId={route.templateId} mode={route.mode} stack={route.stack} cms={route.cms} brandLabel={brandLabel} fixtureSlug={fixtureSlug} base={base} />
         )}
         {!isLoading && !error && brand && activeTab === 'data' && (
           <DataView brand={brand} sourceLabel={brandLabel} meta={meta} />
@@ -99,27 +102,47 @@ function TabBar({ activeTab, onTabChange }: { activeTab: ViewTab; onTabChange: (
     { id: 'template', label: 'Template view' },
     { id: 'data', label: 'Brand data' },
   ];
+  function setTabHover(el: HTMLButtonElement, active: boolean, selected: boolean) {
+    el.style.background = active ? 'rgba(99,102,241,0.06)' : 'transparent';
+    if (!selected) el.style.color = active ? 'var(--color-primary, #6366f1)' : 'var(--color-neutral-500, #6b7280)';
+  }
   return (
-    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-neutral-200, #e5e7eb)', padding: '0 20px', background: 'var(--color-neutral-50, #f9fafb)' }}>
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onTabChange(tab.id)}
-          style={{
-            padding: '10px 16px',
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
-            fontSize: '0.8125rem',
-            fontWeight: activeTab === tab.id ? 600 : 400,
-            color: activeTab === tab.id ? 'var(--color-primary, #6366f1)' : 'var(--color-neutral-500, #6b7280)',
-            borderBottom: activeTab === tab.id ? '2px solid var(--color-primary, #6366f1)' : '2px solid transparent',
-            marginBottom: '-1px',
-          }}
-        >
-          {tab.label}
-        </button>
-      ))}
+    <div style={{ display: 'flex', borderBottom: '1px solid var(--color-neutral-200, #e5e7eb)', padding: '0 24px', background: 'var(--color-neutral-50, #f9fafb)' }}>
+      {tabs.map((tab) => {
+        const selected = activeTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onTabChange(tab.id)}
+            style={{
+              padding: '8px 12px',
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              fontSize: '0.8125rem',
+              fontWeight: selected ? 700 : 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: selected ? 'var(--color-primary, #6366f1)' : 'var(--color-neutral-500, #6b7280)',
+              borderBottom: selected ? '2px solid var(--color-primary, #6366f1)' : '2px solid transparent',
+              marginBottom: '-1px',
+            }}
+            onMouseEnter={(e) => setTabHover(e.currentTarget, true, selected)}
+            onMouseLeave={(e) => setTabHover(e.currentTarget, false, selected)}
+            onFocus={(e) => {
+              e.currentTarget.style.outline = '2px solid var(--color-primary, #6366f1)';
+              e.currentTarget.style.outlineOffset = '-2px';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.outline = '';
+              e.currentTarget.style.outlineOffset = '';
+              setTabHover(e.currentTarget, false, selected);
+            }}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -127,7 +150,7 @@ function TabBar({ activeTab, onTabChange }: { activeTab: ViewTab; onTabChange: (
 function LoadingState({ label }: { label: string }) {
   return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}>
-      <code style={{ fontSize: '0.8125rem', background: 'var(--color-neutral-50, #f9fafb)', border: '1px solid var(--color-neutral-200, #e5e7eb)', padding: '6px 12px', borderRadius: '4px', color: 'var(--color-neutral-700, #374151)' }}>{label}</code>
+      <code style={{ fontSize: '0.8125rem', background: 'var(--color-neutral-50, #f9fafb)', border: '1px solid var(--color-neutral-200, #e5e7eb)', padding: '8px 12px', borderRadius: '4px', color: 'var(--color-neutral-700, #374151)' }}>{label}</code>
       <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-neutral-400, #9ca3af)' }}>extracting brand signal</span>
     </div>
   );
@@ -146,15 +169,15 @@ function ErrorState({ error, brandLabel }: { error: string; brandLabel: string }
   const zodFormatted = formatZodError(error);
   return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
-      <div style={{ background: '#fef2f2', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '4px', padding: '20px 24px', maxWidth: '600px', width: '100%' }}>
+      <div style={{ background: '#fef2f2', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '4px', padding: '24px', maxWidth: '600px', width: '100%' }}>
         <div style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#ef4444', marginBottom: '10px' }}>confidence: none</div>
-        <code style={{ fontSize: '0.8125rem', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', padding: '3px 8px', borderRadius: '4px', color: '#374151', display: 'inline-block', marginBottom: '12px' }}>{brandLabel}</code>
+        <code style={{ fontSize: '0.8125rem', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', padding: '4px 8px', borderRadius: '4px', color: 'var(--color-neutral-700, #374151)', display: 'inline-block', marginBottom: '12px' }}>{brandLabel}</code>
         {zodFormatted ? (
           <div style={{ marginBottom: '14px' }}>
-            <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>{zodFormatted.summary}</div>
+            <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-neutral-700, #374151)', marginBottom: '8px' }}>{zodFormatted.summary}</div>
             <ul style={{ margin: 0, padding: '0 0 0 16px', fontSize: '0.8125rem', color: 'var(--color-neutral-500, #6b7280)' }}>
               {zodFormatted.fields.map((f) => (
-                <li key={f.path}><code style={{ fontSize: '0.75rem', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', padding: '1px 5px', borderRadius: '4px', color: '#374151' }}>{f.path}</code>: {f.message}</li>
+                <li key={f.path}><code style={{ fontSize: '0.75rem', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', padding: '2px 8px', borderRadius: '4px', color: 'var(--color-neutral-700, #374151)' }}>{f.path}</code>: {f.message}</li>
               ))}
             </ul>
           </div>
@@ -162,8 +185,8 @@ function ErrorState({ error, brandLabel }: { error: string; brandLabel: string }
           <pre style={{ fontSize: '0.8125rem', color: 'var(--color-neutral-500, #6b7280)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: '0 0 14px' }}>{error}</pre>
         )}
         {cors && (
-          <div style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '4px', padding: '10px 12px', marginBottom: '14px' }}>
-            <div style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#ef4444', marginBottom: '6px' }}>cors limitation</div>
+          <div style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '4px', padding: '8px 12px', marginBottom: '12px' }}>
+            <div style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#ef4444', marginBottom: '8px' }}>cors limitation</div>
             <p style={{ fontSize: '0.8125rem', color: 'var(--color-neutral-500, #6b7280)', margin: '0 0 8px' }}>
               Live URL extraction is browser-CORS-blocked on this hosted surface. Use the CLI locally:
             </p>
@@ -173,7 +196,7 @@ function ErrorState({ error, brandLabel }: { error: string; brandLabel: string }
               </code>
               <button
                 onClick={() => copyToClipboard(`vbrand pull ${brandLabel}`)}
-                style={{ fontSize: '0.75rem', padding: '4px 10px', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '4px', background: 'transparent', cursor: 'pointer', flexShrink: 0, color: 'var(--color-neutral-400, #9ca3af)' }}
+                style={{ fontSize: '0.75rem', padding: '4px 8px', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '4px', background: 'transparent', cursor: 'pointer', flexShrink: 0, color: 'var(--color-neutral-400, #9ca3af)' }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               >
@@ -182,7 +205,7 @@ function ErrorState({ error, brandLabel }: { error: string; brandLabel: string }
             </div>
           </div>
         )}
-        <div style={{ borderTop: '1px solid rgba(239,68,68,0.15)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        <div style={{ borderTop: '1px solid rgba(239,68,68,0.15)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'baseline' }}>
             <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#22c55e', flexShrink: 0 }}>offline</span>
             <span style={{ fontSize: '0.8125rem', color: 'var(--color-neutral-500, #6b7280)' }}><code>fixture:</code> and <code>json:&lt;base64&gt;</code> load without network</span>

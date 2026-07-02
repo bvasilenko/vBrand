@@ -15,6 +15,7 @@ export default defineConfig({
   retries: process.env['CI'] ? 2 : 0,
   reporter: [
     ['list'],
+    ['json', { outputFile: '/tmp/vbrand-probe-results.json' }],
     [path.join(__dirname, 'tests/runtime-probe/verdict-reporter.ts')],
   ],
   use: {

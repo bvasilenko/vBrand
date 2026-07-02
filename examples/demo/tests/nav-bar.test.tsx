@@ -5,9 +5,42 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { NavBar } from '../src/nav-bar.js';
-import { buildSearchString, parseRoute, DEFAULT_MODE, type TemplateId, type InteractivityMode } from '../src/router.js';
+import {
+  buildSearchString, parseRoute, DEFAULT_MODE, DEFAULT_STACK, DEFAULT_CMS,
+  STACK_NAMES, CMS_NAMES,
+  type TemplateId, type InteractivityMode, type StackName, type CmsName,
+} from '../src/router.js';
 
 const ALL_TEMPLATE_IDS: readonly TemplateId[] = ['landing', 'marketing', 'docs', 'dashboard'];
+const ALL_MODES: readonly InteractivityMode[] = ['static', 'hybrid', 'spa'];
+const STACK_DEFAULT_MODES: Record<StackName, InteractivityMode> = { vite: 'spa', next: 'hybrid', astro: 'static' };
+
+const DEFAULT_MODE_TRANSITIONS: ReadonlyArray<readonly [StackName, InteractivityMode, StackName, InteractivityMode]> = [
+  ['vite',  'spa',    'next',  'hybrid'],
+  ['vite',  'spa',    'astro', 'static'],
+  ['next',  'hybrid', 'vite',  'spa'],
+  ['next',  'hybrid', 'astro', 'static'],
+  ['astro', 'static', 'vite',  'spa'],
+  ['astro', 'static', 'next',  'hybrid'],
+];
+
+const EXPLICIT_MODE_TRANSITIONS: ReadonlyArray<readonly [StackName, InteractivityMode, StackName, InteractivityMode]> = [
+  ['vite',  'hybrid', 'next',  'hybrid'],
+  ['vite',  'hybrid', 'astro', 'hybrid'],
+  ['vite',  'static', 'next',  'static'],
+  ['vite',  'static', 'astro', 'static'],
+  ['next',  'spa',    'vite',  'spa'],
+  ['next',  'spa',    'astro', 'spa'],
+  ['next',  'static', 'vite',  'static'],
+  ['next',  'static', 'astro', 'static'],
+  ['astro', 'spa',    'vite',  'spa'],
+  ['astro', 'spa',    'next',  'spa'],
+  ['astro', 'hybrid', 'vite',  'hybrid'],
+  ['astro', 'hybrid', 'next',  'hybrid'],
+];
+
+const NON_DEFAULT_STACKS: readonly StackName[] = STACK_NAMES.filter(s => s !== DEFAULT_STACK);
+const NON_DEFAULT_CMS_NAMES: readonly CmsName[] = CMS_NAMES.filter(c => c !== DEFAULT_CMS);
 
 const FIXTURE_BRANDS = [
   'fixture:stripe',
@@ -53,6 +86,8 @@ interface NavBarOverrides {
   currentMode?: InteractivityMode;
   currentBrand?: string;
   currentTemplate?: TemplateId;
+  currentStack?: StackName;
+  currentCms?: CmsName;
   isLoading?: boolean;
   dataViewHref?: string;
   onDataViewNavigate?: () => void;
@@ -77,6 +112,18 @@ function templateSelect(): HTMLSelectElement {
   return container.querySelector('select') as HTMLSelectElement;
 }
 
+function modeSelect(): HTMLSelectElement {
+  return container.querySelectorAll('select')[1] as HTMLSelectElement;
+}
+
+function stackSelect(): HTMLSelectElement {
+  return container.querySelectorAll('select')[2] as HTMLSelectElement;
+}
+
+function cmsSelect(): HTMLSelectElement {
+  return container.querySelectorAll('select')[3] as HTMLSelectElement;
+}
+
 function brandInput(): HTMLInputElement {
   return container.querySelector('input') as HTMLInputElement;
 }
@@ -99,6 +146,30 @@ function changeTemplateSelect(id: TemplateId): void {
   act(() => {
     const sel = templateSelect();
     sel.value = id;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+function changeModeSelect(mode: InteractivityMode): void {
+  act(() => {
+    const sel = modeSelect();
+    sel.value = mode;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+function changeStackSelect(stack: StackName): void {
+  act(() => {
+    const sel = stackSelect();
+    sel.value = stack;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+function changeCmsSelect(cms: CmsName): void {
+  act(() => {
+    const sel = cmsSelect();
+    sel.value = cms;
     sel.dispatchEvent(new Event('change', { bubbles: true }));
   });
 }
@@ -358,20 +429,6 @@ describe('NavBar: data view link', () => {
   });
 });
 
-const ALL_MODES: readonly InteractivityMode[] = ['static', 'hybrid', 'spa'];
-
-function modeSelect(): HTMLSelectElement {
-  return container.querySelectorAll('select')[1] as HTMLSelectElement;
-}
-
-function changeModeSelect(mode: InteractivityMode): void {
-  act(() => {
-    const sel = modeSelect();
-    sel.value = mode;
-    sel.dispatchEvent(new Event('change', { bubbles: true }));
-  });
-}
-
 describe('NavBar: mode select reflects currentMode prop', () => {
   it.each(ALL_MODES)(
     'currentMode="%s": mode select value matches the prop',
@@ -386,10 +443,10 @@ describe('NavBar: mode select reflects currentMode prop', () => {
     expect(modeSelect().value).toBe(DEFAULT_MODE);
   });
 
-  it('mode select offers exactly three options: static, hybrid, spa', () => {
+  it('mode select offers exactly the ALL_MODES options', () => {
     renderNavBar();
     const offered = [...modeSelect().options].map((o) => o.value).sort();
-    expect(offered).toEqual(['hybrid', 'spa', 'static']);
+    expect(offered).toEqual([...ALL_MODES].sort());
   });
 
   it('mode select is a distinct element from the template select', () => {
@@ -519,9 +576,31 @@ describe('NavBar: navigation hash policy', () => {
   it.each(ALL_MODES)(
     'mode change to "%s" does not produce a hash-stripping navigation',
     (newMode) => {
-      const currentMode = newMode === 'spa' ? 'static' : 'spa';
+      const currentMode = newMode === DEFAULT_MODE ? ALL_MODES.find(m => m !== DEFAULT_MODE)! : DEFAULT_MODE;
       renderNavBar({ currentTemplate: 'landing', currentMode });
       changeModeSelect(newMode);
+      expect(hrefNavigations).toHaveLength(0);
+      expect(navigations).toHaveLength(1);
+    },
+  );
+
+  it.each(STACK_NAMES)(
+    'stack change to "%s" does not produce a hash-stripping navigation',
+    (stack) => {
+      const currentStack = stack === DEFAULT_STACK ? NON_DEFAULT_STACKS[0]! : DEFAULT_STACK;
+      renderNavBar({ currentStack });
+      changeStackSelect(stack);
+      expect(hrefNavigations).toHaveLength(0);
+      expect(navigations).toHaveLength(1);
+    },
+  );
+
+  it.each(CMS_NAMES)(
+    'CMS change to "%s" does not produce a hash-stripping navigation',
+    (cms) => {
+      const currentCms = cms === DEFAULT_CMS ? NON_DEFAULT_CMS_NAMES[0]! : DEFAULT_CMS;
+      renderNavBar({ currentCms });
+      changeCmsSelect(cms);
       expect(hrefNavigations).toHaveLength(0);
       expect(navigations).toHaveLength(1);
     },
@@ -645,6 +724,18 @@ describe('NavBar: brand input change auto-submits on known example values', () =
     expect(new URLSearchParams(navigations[0]).get('mode')).toBe('static');
   });
 
+  it('auto-submit navigation preserves a non-default stack', () => {
+    renderNavBar({ currentStack: NON_DEFAULT_STACKS[0] });
+    simulateBrandInputChange('fixture:vercel');
+    expect(new URLSearchParams(navigations[0]).get('stack')).toBe(NON_DEFAULT_STACKS[0]);
+  });
+
+  it('auto-submit navigation preserves a non-default CMS substrate', () => {
+    renderNavBar({ currentCms: NON_DEFAULT_CMS_NAMES[0] });
+    simulateBrandInputChange('fixture:linear');
+    expect(new URLSearchParams(navigations[0]).get('cms')).toBe(NON_DEFAULT_CMS_NAMES[0]);
+  });
+
   it('changing to a partial value that is a prefix of a known example does NOT trigger navigation', () => {
     renderNavBar();
     simulateBrandInputChange('fixture:str');
@@ -757,4 +848,306 @@ describe('NavBar: examples details keyboard navigation', () => {
     act(() => exampleButtons()[0]!.click());
     expect(det.open).toBe(false);
   });
+});
+
+describe('NavBar: stack select reflects currentStack prop', () => {
+  it.each(STACK_NAMES)(
+    'currentStack="%s": stack select value matches the prop',
+    (stack) => {
+      renderNavBar({ currentStack: stack });
+      expect(stackSelect().value).toBe(stack);
+    },
+  );
+
+  it(`defaults to DEFAULT_STACK ("${DEFAULT_STACK}") when currentStack is not provided`, () => {
+    renderNavBar({});
+    expect(stackSelect().value).toBe(DEFAULT_STACK);
+  });
+
+  it('stack select offers exactly the STACK_NAMES options', () => {
+    renderNavBar();
+    const offered = [...stackSelect().options].map((o) => o.value).sort();
+    expect(offered).toEqual([...STACK_NAMES].sort());
+  });
+
+  it('stack select is a distinct DOM element from template, mode, and CMS selects', () => {
+    renderNavBar();
+    const stack = stackSelect();
+    expect(stack).not.toBe(templateSelect());
+    expect(stack).not.toBe(modeSelect());
+    expect(stack).not.toBe(cmsSelect());
+  });
+});
+
+describe('NavBar: stack select change triggers navigation', () => {
+  it.each(STACK_NAMES)(
+    'changing stack to "%s" causes exactly one navigation call',
+    (stack) => {
+      renderNavBar({ currentStack: DEFAULT_STACK });
+      changeStackSelect(stack);
+      expect(navigations).toHaveLength(1);
+    },
+  );
+
+  it.each(NON_DEFAULT_STACKS)(
+    'navigation from stack change to "%s" includes stack=%s in the search string',
+    (stack) => {
+      renderNavBar({ currentStack: DEFAULT_STACK });
+      changeStackSelect(stack);
+      expect(new URLSearchParams(navigations[0]).get('stack')).toBe(stack);
+    },
+  );
+
+  it('navigation to DEFAULT_STACK omits the stack param (clean URL)', () => {
+    renderNavBar({ currentStack: NON_DEFAULT_STACKS[0] });
+    changeStackSelect(DEFAULT_STACK);
+    expect(new URLSearchParams(navigations[0]).get('stack')).toBeNull();
+  });
+
+  it('navigation from stack change carries the current brand, template, mode, and CMS substrate', () => {
+    renderNavBar({ currentBrand: 'fixture:vercel', currentTemplate: 'docs', currentMode: 'static', currentCms: NON_DEFAULT_CMS_NAMES[0], currentStack: DEFAULT_STACK });
+    changeStackSelect(NON_DEFAULT_STACKS[0]!);
+    const params = new URLSearchParams(navigations[0]);
+    expect(params.get('brand')).toBe('fixture:vercel');
+    expect(params.get('app')).toBe('docs');
+    expect(params.get('mode')).toBe('static');
+    expect(params.get('cms')).toBe(NON_DEFAULT_CMS_NAMES[0]);
+    expect(params.get('stack')).toBe(NON_DEFAULT_STACKS[0]);
+  });
+
+  it('navigation search string equals buildSearchString(brand, template, mode, newStack, currentCms)', () => {
+    renderNavBar({ currentBrand: 'fixture:linear', currentTemplate: 'marketing', currentMode: 'static', currentCms: NON_DEFAULT_CMS_NAMES[1]!, currentStack: DEFAULT_STACK });
+    changeStackSelect(NON_DEFAULT_STACKS[0]!);
+    expect(navigations[0]).toBe(buildSearchString('fixture:linear', 'marketing', 'static', NON_DEFAULT_STACKS[0], NON_DEFAULT_CMS_NAMES[1]));
+  });
+
+  it('navigation is round-trip parseable and recovers stack, brand, template, and mode', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'dashboard', currentMode: 'hybrid', currentStack: DEFAULT_STACK });
+    changeStackSelect(NON_DEFAULT_STACKS[0]!);
+    const route = parseRoute(navigations[0]!);
+    expect(route.stack).toBe(NON_DEFAULT_STACKS[0]);
+    expect(route.templateId).toBe('dashboard');
+    expect(route.mode).toBe('hybrid');
+    expect(route.brandParams).toEqual({ type: 'fixture', handle: 'stripe' });
+  });
+});
+
+describe('NavBar: navigation from brand/template/load preserves active stack', () => {
+  it('template change preserves a non-default currentStack in navigation', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentStack: NON_DEFAULT_STACKS[0] });
+    changeTemplateSelect('docs');
+    expect(new URLSearchParams(navigations[0]).get('stack')).toBe(NON_DEFAULT_STACKS[0]);
+  });
+
+  it('template change with DEFAULT_STACK omits the stack param', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentStack: DEFAULT_STACK });
+    changeTemplateSelect('marketing');
+    expect(new URLSearchParams(navigations[0]).get('stack')).toBeNull();
+  });
+
+  it('Load button preserves a non-default currentStack in navigation', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentStack: NON_DEFAULT_STACKS[0] });
+    clickLoad();
+    expect(new URLSearchParams(navigations[0]).get('stack')).toBe(NON_DEFAULT_STACKS[0]);
+  });
+
+  it('Enter key preserves a non-default currentStack in navigation', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentStack: NON_DEFAULT_STACKS[0] });
+    pressEnterInBrandInput();
+    expect(new URLSearchParams(navigations[0]).get('stack')).toBe(NON_DEFAULT_STACKS[0]);
+  });
+
+  it('mode change preserves a non-default currentStack in navigation', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentMode: DEFAULT_MODE, currentStack: NON_DEFAULT_STACKS[0] });
+    changeModeSelect(ALL_MODES.find(m => m !== DEFAULT_MODE)!);
+    expect(new URLSearchParams(navigations[0]).get('stack')).toBe(NON_DEFAULT_STACKS[0]);
+  });
+
+  it('Load navigation equals buildSearchString(brand, template, mode, stack) for a non-default stack', () => {
+    renderNavBar({ currentBrand: 'fixture:notion', currentTemplate: 'dashboard', currentMode: 'static', currentStack: NON_DEFAULT_STACKS[0] });
+    clickLoad();
+    expect(navigations[0]).toBe(buildSearchString('fixture:notion', 'dashboard', 'static', NON_DEFAULT_STACKS[0]));
+  });
+
+  it.each(STACK_NAMES)(
+    'Load button with currentStack="%s" round-trips through parseRoute correctly',
+    (stack) => {
+      renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'marketing', currentStack: stack });
+      clickLoad();
+      expect(parseRoute(navigations[0]!).stack).toBe(stack);
+    },
+  );
+});
+
+describe('NavBar: CMS select reflects currentCms prop', () => {
+  it.each(CMS_NAMES)(
+    'currentCms="%s": CMS select value matches the prop',
+    (cms) => {
+      renderNavBar({ currentCms: cms });
+      expect(cmsSelect().value).toBe(cms);
+    },
+  );
+
+  it(`defaults to DEFAULT_CMS ("${DEFAULT_CMS}") when currentCms is not provided`, () => {
+    renderNavBar({});
+    expect(cmsSelect().value).toBe(DEFAULT_CMS);
+  });
+
+  it('CMS select offers exactly the CMS_NAMES options', () => {
+    renderNavBar();
+    const offered = [...cmsSelect().options].map((o) => o.value).sort();
+    expect(offered).toEqual([...CMS_NAMES].sort());
+  });
+
+  it('CMS select is a distinct DOM element from template, mode, and stack selects', () => {
+    renderNavBar();
+    const cms = cmsSelect();
+    expect(cms).not.toBe(templateSelect());
+    expect(cms).not.toBe(modeSelect());
+    expect(cms).not.toBe(stackSelect());
+  });
+});
+
+describe('NavBar: CMS select change triggers navigation', () => {
+  it.each(CMS_NAMES)(
+    'changing CMS to "%s" causes exactly one navigation call',
+    (cms) => {
+      renderNavBar({ currentCms: DEFAULT_CMS });
+      changeCmsSelect(cms);
+      expect(navigations).toHaveLength(1);
+    },
+  );
+
+  it.each(NON_DEFAULT_CMS_NAMES)(
+    'navigation from CMS change to "%s" includes cms=%s in the search string',
+    (cms) => {
+      renderNavBar({ currentCms: DEFAULT_CMS });
+      changeCmsSelect(cms);
+      expect(new URLSearchParams(navigations[0]).get('cms')).toBe(cms);
+    },
+  );
+
+  it('navigation to DEFAULT_CMS omits the cms param (clean URL)', () => {
+    renderNavBar({ currentCms: NON_DEFAULT_CMS_NAMES[0] });
+    changeCmsSelect(DEFAULT_CMS);
+    expect(new URLSearchParams(navigations[0]).get('cms')).toBeNull();
+  });
+
+  it('navigation from CMS change carries the current brand, template, mode, and stack runtime', () => {
+    renderNavBar({ currentBrand: 'fixture:vercel', currentTemplate: 'docs', currentMode: 'hybrid', currentStack: NON_DEFAULT_STACKS[0], currentCms: DEFAULT_CMS });
+    changeCmsSelect(NON_DEFAULT_CMS_NAMES[0]!);
+    const params = new URLSearchParams(navigations[0]);
+    expect(params.get('brand')).toBe('fixture:vercel');
+    expect(params.get('app')).toBe('docs');
+    expect(parseRoute(navigations[0]!).mode).toBe('hybrid');
+    expect(params.get('stack')).toBe(NON_DEFAULT_STACKS[0]);
+    expect(params.get('cms')).toBe(NON_DEFAULT_CMS_NAMES[0]);
+  });
+
+  it('navigation search string equals buildSearchString(brand, template, mode, currentStack, newCms)', () => {
+    renderNavBar({ currentBrand: 'fixture:notion', currentTemplate: 'landing', currentMode: 'static', currentStack: NON_DEFAULT_STACKS[1]!, currentCms: DEFAULT_CMS });
+    changeCmsSelect(NON_DEFAULT_CMS_NAMES[0]!);
+    expect(navigations[0]).toBe(buildSearchString('fixture:notion', 'landing', 'static', NON_DEFAULT_STACKS[1], NON_DEFAULT_CMS_NAMES[0]));
+  });
+
+  it('navigation is round-trip parseable and recovers CMS, brand, template, and mode', () => {
+    renderNavBar({ currentBrand: 'fixture:github', currentTemplate: 'marketing', currentMode: 'spa', currentCms: DEFAULT_CMS });
+    changeCmsSelect(NON_DEFAULT_CMS_NAMES[0]!);
+    const route = parseRoute(navigations[0]!);
+    expect(route.cms).toBe(NON_DEFAULT_CMS_NAMES[0]);
+    expect(route.templateId).toBe('marketing');
+    expect(route.brandParams).toEqual({ type: 'fixture', handle: 'github' });
+  });
+});
+
+describe('NavBar: navigation from brand/template/load preserves active CMS', () => {
+  it('template change preserves a non-default currentCms in navigation', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentCms: NON_DEFAULT_CMS_NAMES[0] });
+    changeTemplateSelect('docs');
+    expect(new URLSearchParams(navigations[0]).get('cms')).toBe(NON_DEFAULT_CMS_NAMES[0]);
+  });
+
+  it('template change with DEFAULT_CMS omits the cms param', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentCms: DEFAULT_CMS });
+    changeTemplateSelect('marketing');
+    expect(new URLSearchParams(navigations[0]).get('cms')).toBeNull();
+  });
+
+  it('Load button preserves a non-default currentCms in navigation', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentCms: NON_DEFAULT_CMS_NAMES[0] });
+    clickLoad();
+    expect(new URLSearchParams(navigations[0]).get('cms')).toBe(NON_DEFAULT_CMS_NAMES[0]);
+  });
+
+  it('Enter key preserves a non-default currentCms in navigation', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentCms: NON_DEFAULT_CMS_NAMES[0] });
+    pressEnterInBrandInput();
+    expect(new URLSearchParams(navigations[0]).get('cms')).toBe(NON_DEFAULT_CMS_NAMES[0]);
+  });
+
+  it('mode change preserves a non-default currentCms in navigation', () => {
+    renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentMode: DEFAULT_MODE, currentCms: NON_DEFAULT_CMS_NAMES[0] });
+    changeModeSelect(ALL_MODES.find(m => m !== DEFAULT_MODE)!);
+    expect(new URLSearchParams(navigations[0]).get('cms')).toBe(NON_DEFAULT_CMS_NAMES[0]);
+  });
+
+  it('stack change preserves a non-default currentCms in navigation', () => {
+    renderNavBar({ currentStack: DEFAULT_STACK, currentCms: NON_DEFAULT_CMS_NAMES[0] });
+    changeStackSelect(NON_DEFAULT_STACKS[0]!);
+    expect(new URLSearchParams(navigations[0]).get('cms')).toBe(NON_DEFAULT_CMS_NAMES[0]);
+  });
+
+  it('CMS change preserves a non-default currentStack in navigation', () => {
+    renderNavBar({ currentStack: NON_DEFAULT_STACKS[0], currentCms: DEFAULT_CMS });
+    changeCmsSelect(NON_DEFAULT_CMS_NAMES[0]!);
+    expect(new URLSearchParams(navigations[0]).get('stack')).toBe(NON_DEFAULT_STACKS[0]);
+  });
+
+  it('Load navigation equals buildSearchString(brand, template, mode, stack, cms) for non-default CMS', () => {
+    renderNavBar({ currentBrand: 'fixture:notion', currentTemplate: 'dashboard', currentMode: 'static', currentCms: NON_DEFAULT_CMS_NAMES[0] });
+    clickLoad();
+    expect(navigations[0]).toBe(buildSearchString('fixture:notion', 'dashboard', 'static', undefined, NON_DEFAULT_CMS_NAMES[0]));
+  });
+
+  it.each(CMS_NAMES)(
+    'Load button with currentCms="%s" round-trips through parseRoute correctly',
+    (cms) => {
+      renderNavBar({ currentBrand: 'fixture:stripe', currentTemplate: 'landing', currentCms: cms });
+      clickLoad();
+      expect(parseRoute(navigations[0]!).cms).toBe(cms);
+    },
+  );
+});
+
+describe('NavBar: mode follows target stack default when switching from a stack-default mode', () => {
+  it.each(DEFAULT_MODE_TRANSITIONS)(
+    'from %s(%s) to %s: route recovers mode=%s (target default, omitted from URL)',
+    (fromStack, fromMode, toStack, expectedMode) => {
+      renderNavBar({ currentStack: fromStack, currentMode: fromMode });
+      changeStackSelect(toStack);
+      expect(parseRoute(navigations[0]!).mode).toBe(expectedMode);
+    },
+  );
+});
+
+describe('NavBar: explicit non-default mode is preserved through any stack switch', () => {
+  it.each(EXPLICIT_MODE_TRANSITIONS)(
+    'from %s(%s) to %s: explicit mode=%s is preserved',
+    (fromStack, fromMode, toStack, expectedMode) => {
+      renderNavBar({ currentStack: fromStack, currentMode: fromMode });
+      changeStackSelect(toStack);
+      expect(parseRoute(navigations[0]!).mode).toBe(expectedMode);
+    },
+  );
+});
+
+describe('NavBar: same-stack selection leaves mode unchanged', () => {
+  it.each(STACK_NAMES.flatMap((stack) => ALL_MODES.map((mode) => [stack, mode] as const)))(
+    'stack=%s mode=%s: same-stack selection leaves mode unchanged',
+    (stack, mode) => {
+      renderNavBar({ currentStack: stack, currentMode: mode });
+      changeStackSelect(stack);
+      expect(parseRoute(navigations[0]!).mode).toBe(mode);
+    },
+  );
 });

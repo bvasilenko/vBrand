@@ -42,7 +42,8 @@ Table uses `borderCollapse: 'collapse'` with a 2px bottom border on thead, 1px o
 ## Component Patterns
 
 ### Badge
-Confidence pill: white text on `CONFIDENCE_COLOR[level]` background; `borderRadius: 4`, `padding: '2px 8px'`, `fontSize: 11`, `fontWeight: 700`, `letterSpacing: 1`.
+Confidence pill: white text on `CONFIDENCE_COLOR[level]` background; `borderRadius: '4px'`, `padding: '2px 8px'`, `fontSize: 11`, `fontWeight: 700`, `letterSpacing: 1`.
+Note: borderRadius is always expressed as a string `'4px'` throughout the codebase (not numeric `4`).
 
 ### FieldRow
 Table row with `CONFIDENCE_BG[confidence]` background. Columns: field name (monospace), badge, value (word-break), source/reason (muted).

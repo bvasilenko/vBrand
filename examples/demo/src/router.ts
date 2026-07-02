@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
+import { parseStack, getStackRuntime, DEFAULT_STACK, STACK_NAMES } from '@booga/vbrand/stacks';
+import type { StackName } from '@booga/vbrand/stacks';
+import { parseCms, DEFAULT_CMS, CMS_NAMES } from '@booga/vbrand/cms';
+import type { CmsName } from '@booga/vbrand/cms';
+
+export type { StackName, CmsName };
+export { DEFAULT_STACK, DEFAULT_CMS, STACK_NAMES, CMS_NAMES };
+
 export type TemplateId = 'landing' | 'marketing' | 'docs' | 'dashboard';
 export type InteractivityMode = 'static' | 'hybrid' | 'spa';
 
@@ -18,6 +26,8 @@ export interface RouteState {
   templateId: TemplateId;
   view: ViewTab;
   mode: InteractivityMode;
+  stack: StackName;
+  cms: CmsName;
 }
 
 const TEMPLATE_IDS: readonly TemplateId[] = ['landing', 'marketing', 'docs', 'dashboard'];
@@ -28,11 +38,15 @@ export const DEFAULT_MODE: InteractivityMode = 'spa';
 
 export function parseRoute(search: string, pathname = '/', base = '/'): RouteState {
   const params = new URLSearchParams(search);
+  const stack = parseStack(params.get('stack'));
+  const modeParam = params.get('mode');
   return {
     brandParams: parseBrandParam(params.get('brand')),
     templateId: parseTemplateParam(params.get('app')),
     view: parseViewFromPath(pathname, base),
-    mode: parseModeParam(params.get('mode')),
+    mode: modeParam ? parseModeParam(modeParam) : getStackRuntime(stack).defaultMode(),
+    stack,
+    cms: parseCms(params.get('cms')),
   };
 }
 
@@ -60,11 +74,17 @@ export function buildSearchString(
   brandParam: string,
   templateId: TemplateId,
   mode?: InteractivityMode,
+  stack?: StackName,
+  cms?: CmsName,
 ): string {
   const params = new URLSearchParams();
   if (brandParam) params.set('brand', brandParam);
   params.set('app', templateId);
-  if (mode && mode !== DEFAULT_MODE) params.set('mode', mode);
+  const resolvedStack = stack ?? DEFAULT_STACK;
+  const stackDefaultMode = getStackRuntime(resolvedStack).defaultMode();
+  if (mode && mode !== stackDefaultMode) params.set('mode', mode);
+  if (stack && stack !== DEFAULT_STACK) params.set('stack', stack);
+  if (cms && cms !== DEFAULT_CMS) params.set('cms', cms);
   return params.toString();
 }
 

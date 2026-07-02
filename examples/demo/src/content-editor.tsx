@@ -42,6 +42,7 @@ export function ContentEditor({
 
   return (
     <aside
+      data-panel="content-editor"
       style={{
         width: '240px',
         padding: '16px',
