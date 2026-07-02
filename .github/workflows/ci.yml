@@ -155,7 +155,7 @@ jobs:
         run: bun run build
 
       - name: playwright-install
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
 
       - name: test-e2e
         run: bun run test:e2e
